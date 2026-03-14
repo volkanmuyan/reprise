@@ -850,3 +850,82 @@ html, body {
   color: var(--muted);
   font-size: 14px;
 }
+
+/* ── METRIC RATINGS ── */
+.metrics-section { margin-top: 16px; }
+.metrics-divider {
+  height: 1px;
+  background: var(--line);
+  margin-bottom: 14px;
+}
+.metrics-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-bottom: 14px;
+}
+.metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.metric-label {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  width: 110px;
+  flex-shrink: 0;
+}
+.metric-dots {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.metric-dot {
+  width: 32px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg4);
+  cursor: pointer;
+  transition: background .15s;
+}
+.metric-dot.filled { background: var(--accent); }
+
+/* ── ATTENDEE PROFILE OVERLAY ── */
+#profile-overlay {
+  z-index: 200;
+}
+.profile-ov-cover {
+  height: 180px;
+  background-size: cover;
+  background-position: center top;
+  position: relative;
+}
+.profile-ov-cover::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 100px;
+  background: linear-gradient(to top, var(--bg), transparent);
+}
+.profile-ov-body { padding: 0 20px; }
+.profile-ov-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-top: -36px;
+  margin-bottom: 20px;
+}
+.profile-ov-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--bg);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}

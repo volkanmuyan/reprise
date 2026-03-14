@@ -491,9 +491,31 @@
 
           <!-- Rating -->
           <div class="rating-section" id="rating-section">
-            <p class="rating-prompt">Puanını ver</p>
+            <p class="rating-prompt">Genel Puan</p>
             <div class="rating-scale" id="rating-scale"></div>
             <p class="rating-note" id="rating-note">Dokunarak puan ver</p>
+
+            <!-- Metric Ratings -->
+            <div class="metrics-section" id="metrics-section" style="display:none">
+              <div class="metrics-divider"></div>
+              <p class="metrics-title">Detaylı Değerlendirme</p>
+              <div class="metric-row">
+                <span class="metric-label">Organizasyon</span>
+                <div class="metric-dots" data-metric="org"></div>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Ses Kalitesi</span>
+                <div class="metric-dots" data-metric="sound"></div>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Atmosfer</span>
+                <div class="metric-dots" data-metric="atm"></div>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Performans</span>
+                <div class="metric-dots" data-metric="perf"></div>
+              </div>
+            </div>
           </div>
 
           <!-- Review Box -->
@@ -522,6 +544,49 @@
 
           <div style="height:32px"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── OVERLAY: ATTENDEE PROFILE ── -->
+    <div class="overlay" id="profile-overlay">
+      <button class="back-btn" onclick="closeProfile()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+
+      <div class="profile-ov-cover" id="po-cover"></div>
+
+      <div class="profile-ov-body">
+        <div class="profile-ov-hero">
+          <img class="profile-ov-avatar" id="po-avatar" src="" alt="">
+          <div>
+            <h2 class="profile-name" id="po-name"></h2>
+            <p class="profile-bio" id="po-bio"></p>
+            <div class="profile-follow-row">
+              <span id="po-follow"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-stats-row">
+          <div class="pstat">
+            <span class="pstat-num" id="po-concerts"></span>
+            <span class="pstat-label">Konser</span>
+          </div>
+          <div class="pstat">
+            <span class="pstat-num" id="po-avg"></span>
+            <span class="pstat-label">Ort. Puan</span>
+          </div>
+          <div class="pstat-divider"></div>
+          <div class="pstat">
+            <span class="pstat-num" id="po-want"></span>
+            <span class="pstat-label">İstek Listesi</span>
+          </div>
+        </div>
+
+        <div class="section-mini-title" style="padding:0 20px 12px">Katıldığı Konserler</div>
+        <div class="concert-grid" id="po-grid"></div>
+
+        <div style="height:32px"></div>
       </div>
     </div>
 
