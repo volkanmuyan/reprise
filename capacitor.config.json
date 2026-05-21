@@ -1,0 +1,31 @@
+{
+  "appId": "com.encore.app",
+  "appName": "Encore",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#0A0A0A"
+  },
+  "android": {
+    "backgroundColor": "#0A0A0A"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#0A0A0A",
+      "showSpinner": false,
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "iosSpinnerStyle": "small",
+      "spinnerColor": "#C8FF00"
+    },
+    "StatusBar": {
+      "style": "dark",
+      "backgroundColor": "#0A0A0A"
+    }
+  }
+}

@@ -237,6 +237,345 @@ const USERS = {
 let currentStatus = null;
 let currentRating = null;
 let currentEvent = null;
+let fcRating = null;
+let currentDetailId = null;
+
+// ── MY CONCERT HISTORY (localStorage) ──
+const HISTORY_KEY = 'encore_history';
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveHistory(history) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+// ── COVER IMAGES (pool for user-added concerts) ──
+const COVER_POOL = [
+  'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=200&q=60',
+  'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=200&q=60',
+  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&q=60',
+  'https://images.unsplash.com/photo-1501386761578-eaa54b7c5b25?w=200&q=60',
+  'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=60',
+  'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=200&q=60',
+  'https://images.unsplash.com/photo-1540039155733-5bb30b4bd1cd?w=200&q=60',
+];
+
+function getCoverImg(concert) {
+  let hash = 0;
+  const str = concert.artist || String(concert.id);
+  for (let i = 0; i < str.length; i++) hash = (hash << 5) - hash + str.charCodeAt(i);
+  return COVER_POOL[Math.abs(hash) % COVER_POOL.length];
+}
+
+// ── DATE HELPERS ──
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  return new Date(dateStr + 'T12:00:00');
+}
+
+function formatMonth(dateStr) {
+  if (!dateStr) return '—';
+  const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  const d = parseDate(dateStr);
+  return d ? months[d.getMonth()] : '—';
+}
+
+function formatDay(dateStr) {
+  if (!dateStr) return '—';
+  const d = parseDate(dateStr);
+  return d ? d.getDate() : '—';
+}
+
+function formatFullDate(dateStr) {
+  if (!dateStr) return '';
+  const d = parseDate(dateStr);
+  if (!d) return dateStr;
+  const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ── PROFILE STATS ──
+function refreshProfileStats() {
+  const history = loadHistory();
+  const count = history.length;
+  const rated = history.filter(c => c.rating);
+  const avg = rated.length
+    ? (rated.reduce((s, c) => s + Number(c.rating), 0) / rated.length).toFixed(1)
+    : '—';
+  const el = id => document.getElementById(id);
+  if (el('stat-concerts')) el('stat-concerts').textContent = count;
+  if (el('stat-avg')) el('stat-avg').textContent = avg;
+}
+
+// ── RENDER ATTENDED GRID ──
+function renderMyAttended() {
+  const history = loadHistory();
+  const grid = document.getElementById('my-attended-grid');
+  const empty = document.getElementById('my-attended-empty');
+  if (!grid) return;
+
+  if (history.length === 0) {
+    grid.innerHTML = '';
+    if (empty) { empty.style.display = 'flex'; }
+    return;
+  }
+  if (empty) { empty.style.display = 'none'; }
+
+  const sorted = [...history].sort((a, b) => {
+    const da = a.date ? new Date(a.date) : new Date(0);
+    const db = b.date ? new Date(b.date) : new Date(0);
+    return db - da;
+  });
+
+  grid.innerHTML = sorted.map(c => `
+    <div class="cg-item my-concert-item" data-id="${c.id}">
+      <div class="cg-img" style="background-image:url('${getCoverImg(c)}')"></div>
+      ${c.rating ? `<span class="cg-score">${c.rating}</span>` : ''}
+      <div class="cg-artist-label">${escapeHtml(c.artist)}</div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.my-concert-item').forEach(item => {
+    item.addEventListener('click', () => openMyConcertDetail(Number(item.dataset.id)));
+  });
+}
+
+// ── RENDER TIMELINE ──
+function renderTimeline() {
+  const container = document.getElementById('tab-timeline');
+  if (!container) return;
+
+  const history = loadHistory();
+
+  if (history.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg class="empty-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <p class="empty-title">Kronoloji boş</p>
+        <p class="empty-sub">Konserlerini ekle, burada görünsün</p>
+      </div>`;
+    return;
+  }
+
+  const sorted = [...history].sort((a, b) => {
+    const da = a.date ? new Date(a.date) : new Date(0);
+    const db = b.date ? new Date(b.date) : new Date(0);
+    return db - da;
+  });
+
+  const byYear = {};
+  sorted.forEach(c => {
+    const d = c.date ? parseDate(c.date) : null;
+    const year = d ? d.getFullYear() : 'Tarihsiz';
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(c);
+  });
+
+  const years = Object.keys(byYear).sort((a, b) => {
+    if (a === 'Tarihsiz') return 1;
+    if (b === 'Tarihsiz') return -1;
+    return Number(b) - Number(a);
+  });
+
+  container.innerHTML = years.map(year => `
+    <div class="tl-year-group">
+      <div class="tl-year-label">${year}</div>
+      ${byYear[year].map(c => `
+        <div class="tl-item" data-id="${c.id}">
+          <div class="tl-date-col">
+            <span class="tl-month">${formatMonth(c.date)}</span>
+            <span class="tl-day">${formatDay(c.date)}</span>
+          </div>
+          <div class="tl-line-wrap"><div class="tl-dot"></div><div class="tl-line"></div></div>
+          <div class="tl-body">
+            <p class="tl-artist">${escapeHtml(c.artist)}</p>
+            ${[c.venue, c.city].filter(Boolean).length ? `<p class="tl-venue-city">${escapeHtml([c.venue, c.city].filter(Boolean).join(' · '))}</p>` : ''}
+            ${c.rating ? `<span class="tl-score">${c.rating}</span>` : ''}
+            ${c.notes ? `<p class="tl-notes">"${escapeHtml(c.notes)}"</p>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.tl-item').forEach(item => {
+    item.addEventListener('click', () => openMyConcertDetail(Number(item.dataset.id)));
+  });
+}
+
+// ── ESCAPE HTML ──
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── MY CONCERT DETAIL ──
+function openMyConcertDetail(id) {
+  const history = loadHistory();
+  const c = history.find(h => h.id === id);
+  if (!c) return;
+  currentDetailId = id;
+
+  document.getElementById('mdo-artist').textContent = c.artist;
+  document.getElementById('mdo-venue').textContent = [c.venue, c.city].filter(Boolean).join(' · ') || '';
+  document.getElementById('mdo-date').textContent = formatFullDate(c.date);
+
+  const scoreWrap = document.getElementById('mdo-score-wrap');
+  scoreWrap.innerHTML = c.rating
+    ? `<span class="mdo-score-pill">${c.rating}/10</span>`
+    : '';
+
+  const notesEl = document.getElementById('mdo-notes');
+  notesEl.textContent = c.notes ? `"${c.notes}"` : '';
+  notesEl.style.display = c.notes ? 'block' : 'none';
+
+  document.getElementById('mdo-delete').onclick = () => deleteConcert(id);
+
+  document.getElementById('my-detail-overlay').classList.add('open');
+}
+
+function closeMyConcertDetail() {
+  document.getElementById('my-detail-overlay').classList.remove('open');
+  currentDetailId = null;
+}
+
+function deleteConcert(id) {
+  const history = loadHistory().filter(c => c.id !== id);
+  saveHistory(history);
+  closeMyConcertDetail();
+  refreshProfileStats();
+  renderMyAttended();
+  renderTimeline();
+  showToast('Konser silindi');
+}
+
+// ── ADD CONCERT FORM ──
+function openAddConcert() {
+  fcRating = null;
+  const fields = ['fc-artist','fc-venue','fc-city','fc-notes'];
+  fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const dateEl = document.getElementById('fc-date');
+  if (dateEl) dateEl.value = '';
+  const charEl = document.getElementById('fc-char-count');
+  if (charEl) charEl.textContent = '0/280';
+  const noteEl = document.getElementById('fc-rating-note');
+  if (noteEl) noteEl.textContent = 'Puanlamak için dokunun';
+  initFCRating();
+  document.getElementById('add-concert-overlay').classList.add('open');
+}
+
+function closeAddConcert() {
+  document.getElementById('add-concert-overlay').classList.remove('open');
+}
+
+function initFCRating() {
+  const scale = document.getElementById('fc-rating-scale');
+  if (!scale) return;
+  scale.innerHTML = '';
+  for (let i = 1; i <= 10; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'rating-num';
+    btn.textContent = i;
+    btn.addEventListener('click', () => selectFCRating(i, btn));
+    scale.appendChild(btn);
+  }
+}
+
+function selectFCRating(num, btnEl) {
+  fcRating = num;
+  document.querySelectorAll('#fc-rating-scale .rating-num').forEach(b => b.classList.remove('selected'));
+  btnEl.classList.add('selected');
+  const labels = {1:'Berbat',2:'Çok kötü',3:'Kötü',4:'Vasat',5:'Orta',6:'İyi sayılır',7:'İyi',8:'Çok iyi',9:'Harika',10:'Mükemmel!'};
+  const noteEl = document.getElementById('fc-rating-note');
+  if (noteEl) noteEl.textContent = `${num}/10 — ${labels[num]}`;
+}
+
+function saveNewConcert(e) {
+  e.preventDefault();
+  const get = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const artist = get('fc-artist');
+  const date   = get('fc-date');
+  if (!artist || !date) return;
+
+  const concert = {
+    id: Date.now(),
+    artist,
+    venue: get('fc-venue'),
+    city:  get('fc-city'),
+    date,
+    rating: fcRating,
+    notes:  get('fc-notes'),
+    addedAt: new Date().toISOString(),
+  };
+
+  const history = loadHistory();
+  history.push(concert);
+  saveHistory(history);
+
+  closeAddConcert();
+  refreshProfileStats();
+  renderMyAttended();
+  renderTimeline();
+  showToast(`"${artist}" eklendi!`);
+}
+
+function handleSheetBackdrop(event, overlayId) {
+  if (event.target.id === overlayId) {
+    if (overlayId === 'add-concert-overlay') closeAddConcert();
+    if (overlayId === 'my-detail-overlay') closeMyConcertDetail();
+  }
+}
+
+// ── SHARE PROFILE ──
+async function shareProfile() {
+  const history = loadHistory();
+  const count = history.length;
+  const rated = history.filter(c => c.rating);
+  const avg = rated.length
+    ? (rated.reduce((s, c) => s + Number(c.rating), 0) / rated.length).toFixed(1)
+    : null;
+
+  const text = count > 0
+    ? `${count} konser gördüm${avg ? `, ortalamam ${avg}/10` : ''}. Encore’da konser geçmişimi takip ediyorum!`
+    : 'Encore’da konser geçmişimi takip ediyorum!';
+
+  const shareData = {
+    title: 'Encore — Konser Geçmişim',
+    text,
+    url: 'https://volkanmuyan.github.io/encore/',
+  };
+
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (_) {}
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${text} ${shareData.url}`)
+      .then(() => showToast('Kopyalandı!'));
+  } else {
+    showToast('encore — volkanmuyan.github.io/encore');
+  }
+}
+
+// ── TOAST ──
+function showToast(msg) {
+  const existing = document.getElementById('encore-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'encore-toast';
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.querySelector('.app-shell').appendChild(toast);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => toast.classList.add('show'));
+  });
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
 
 // ── NAVIGATION ──
 function navigate(screenId) {
@@ -244,19 +583,20 @@ function navigate(screenId) {
   const target = document.getElementById(screenId);
   if (target) target.classList.add('active');
 
-  // Update bottom nav
-  document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.classList.remove('active');
-    const map = {
-      'screen-home':     0,
-      'screen-search':   1,
-      'screen-activity': 2,
-      'screen-profile':  3,
-    };
-    if (map[screenId] !== undefined) {
-      document.querySelectorAll('.nav-item')[map[screenId]]?.classList.add('active');
-    }
-  });
+  const map = { 'screen-home': 0, 'screen-search': 1, 'screen-activity': 2, 'screen-profile': 3 };
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+  if (map[screenId] !== undefined) {
+    document.querySelectorAll('.nav-item')[map[screenId]]?.classList.add('active');
+  }
+
+  const fab = document.getElementById('add-concert-fab');
+  if (fab) fab.classList.toggle('visible', screenId === 'screen-profile');
+
+  if (screenId === 'screen-profile') {
+    refreshProfileStats();
+    renderMyAttended();
+    renderTimeline();
+  }
 }
 
 // ── CHIP FILTER ──
@@ -290,19 +630,16 @@ function openEvent(eventId) {
   currentStatus = null;
   currentRating = null;
 
-  // Fill data
   document.getElementById('eo-cover').style.backgroundImage = `url('${ev.cover}')`;
   document.getElementById('eo-title').textContent = ev.title;
   document.getElementById('eo-venue').textContent = ev.venue;
   document.getElementById('eo-date').textContent = ev.date;
   document.getElementById('eo-score').textContent = ev.score;
 
-  // Reset status buttons
   ['sb-attended','sb-want','sb-notgoing'].forEach(id => {
     document.getElementById(id).className = 'status-btn';
   });
 
-  // Build rating scale
   const scale = document.getElementById('rating-scale');
   scale.innerHTML = '';
   for (let i = 1; i <= 10; i++) {
@@ -316,7 +653,6 @@ function openEvent(eventId) {
   document.getElementById('review-box').style.display = 'none';
   document.getElementById('metrics-section').style.display = 'none';
 
-  // Build metric dots
   document.querySelectorAll('.metric-dots').forEach(container => {
     container.innerHTML = '';
     for (let i = 1; i <= 5; i++) {
@@ -327,7 +663,6 @@ function openEvent(eventId) {
     }
   });
 
-  // Attendees — clickable profiles
   const attGrid = document.getElementById('attendees-grid');
   attGrid.innerHTML = '';
   document.getElementById('att-count').textContent = `(${ev.attendees.length})`;
@@ -339,7 +674,6 @@ function openEvent(eventId) {
     attGrid.appendChild(div);
   });
 
-  // Wanting — clickable profiles
   const wantGrid = document.getElementById('want-grid');
   wantGrid.innerHTML = '';
   document.getElementById('want-count').textContent = `(${ev.wanting.length})`;
@@ -351,7 +685,6 @@ function openEvent(eventId) {
     wantGrid.appendChild(div);
   });
 
-  // Reviews
   const revSec = document.getElementById('reviews-section');
   if (ev.reviews.length > 0) {
     revSec.innerHTML = `<h3 class="er-header section-mini-title">Yorumlar <span class="att-count">(${ev.reviews.length})</span></h3>`;
@@ -372,7 +705,6 @@ function openEvent(eventId) {
     revSec.innerHTML = '';
   }
 
-  // Open overlay
   document.getElementById('event-overlay').classList.add('open');
   document.getElementById('event-overlay').scrollTop = 0;
 }
@@ -421,7 +753,6 @@ function setStatus(status) {
 
   const map = { attended: 'sb-attended', want: 'sb-want', notgoing: 'sb-notgoing' };
   const classMap = { attended: 'active-attended', want: 'active-want', notgoing: 'active-notgoing' };
-
   document.getElementById(map[status]).classList.add(classMap[status]);
 
   const ratingSection = document.getElementById('rating-section');
@@ -446,9 +777,7 @@ function setStatus(status) {
 // ── METRIC DOTS ──
 function selectMetric(container, value) {
   const dots = container.querySelectorAll('.metric-dot');
-  dots.forEach((d, i) => {
-    d.classList.toggle('filled', i < value);
-  });
+  dots.forEach((d, i) => d.classList.toggle('filled', i < value));
 }
 
 // ── RATING ──
@@ -456,14 +785,8 @@ function selectRating(num, btnEl) {
   currentRating = num;
   document.querySelectorAll('.rating-num').forEach(b => b.classList.remove('selected'));
   btnEl.classList.add('selected');
-
-  const note = document.getElementById('rating-note');
-  const labels = {
-    1: 'Berbat', 2: 'Çok kötü', 3: 'Kötü', 4: 'Vasat',
-    5: 'Orta', 6: 'İyi sayılır', 7: 'İyi', 8: 'Çok iyi',
-    9: 'Harika', 10: 'Mükemmel!'
-  };
-  note.textContent = `${num}/10 — ${labels[num]}`;
+  const labels = {1:'Berbat',2:'Çok kötü',3:'Kötü',4:'Vasat',5:'Orta',6:'İyi sayılır',7:'İyi',8:'Çok iyi',9:'Harika',10:'Mükemmel!'};
+  document.getElementById('rating-note').textContent = `${num}/10 — ${labels[num]}`;
 }
 
 // ── REVIEW CHAR COUNT ──
@@ -474,6 +797,11 @@ document.querySelectorAll('.review-textarea').forEach(ta => {
   });
 });
 
+document.getElementById('fc-notes').addEventListener('input', function() {
+  const charEl = document.getElementById('fc-char-count');
+  if (charEl) charEl.textContent = `${this.value.length}/280`;
+});
+
 // ── REVIEW SUBMIT ──
 document.querySelectorAll('.review-submit').forEach(btn => {
   btn.addEventListener('click', function() {
@@ -481,13 +809,9 @@ document.querySelectorAll('.review-submit').forEach(btn => {
     if (ta.value.trim()) {
       ta.value = '';
       this.closest('.review-box').querySelector('.review-char').textContent = '0/280';
-      // Feedback
       this.textContent = 'Paylaşıldı!';
       this.style.background = '#4ECDC4';
-      setTimeout(() => {
-        this.textContent = 'Paylaş';
-        this.style.background = '';
-      }, 2000);
+      setTimeout(() => { this.textContent = 'Paylaş'; this.style.background = ''; }, 2000);
     }
   });
 });
@@ -497,10 +821,14 @@ function switchProfileTab(btn, tabId) {
   document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.ptab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
+  const content = document.getElementById(tabId);
+  if (content) content.classList.add('active');
+
+  if (tabId === 'tab-attended') renderMyAttended();
+  if (tabId === 'tab-timeline') renderTimeline();
 }
 
-// ── CLOSE OVERLAYS ON SWIPE DOWN ──
+// ── SWIPE TO CLOSE OVERLAYS ──
 let touchStartY = 0;
 
 const overlay = document.getElementById('event-overlay');
@@ -516,3 +844,10 @@ profileOverlay.addEventListener('touchend', e => {
   const dy = e.changedTouches[0].clientY - touchStartY;
   if (dy > 80 && profileOverlay.scrollTop === 0) closeProfile();
 }, { passive: true });
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  refreshProfileStats();
+  renderMyAttended();
+  renderTimeline();
+});

@@ -895,6 +895,336 @@ html, body {
 }
 .metric-dot.filled { background: var(--accent); }
 
+/* ── PROFILE TABS: 4 tabs — compact font ── */
+.ptab { font-size: 11px; }
+
+/* ── ARTIST LABEL ON GRID ITEM ── */
+.cg-artist-label {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 18px 4px 5px;
+  background: linear-gradient(to top, rgba(0,0,0,.85), transparent);
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 52px 24px;
+  gap: 10px;
+  text-align: center;
+}
+.empty-icon-svg { color: var(--muted2); margin-bottom: 4px; }
+.empty-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.empty-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* ── FAB (Floating Action Button) ── */
+.fab {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  width: 52px; height: 52px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 4px 20px rgba(200,255,0,.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .2s;
+}
+.fab.visible { opacity: 1; pointer-events: all; }
+.fab:active { transform: scale(.9); }
+
+/* ── BOTTOM SHEET BACKDROP ── */
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 400;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.sheet-backdrop.open { opacity: 1; pointer-events: all; }
+
+.bottom-sheet {
+  background: var(--bg2);
+  border-radius: 20px 20px 0 0;
+  padding: 0 20px 40px;
+  max-height: 88%;
+  overflow-y: auto;
+  scrollbar-width: none;
+  transform: translateY(100%);
+  transition: transform .35s cubic-bezier(.32,.72,0,1);
+}
+.bottom-sheet::-webkit-scrollbar { display: none; }
+.sheet-backdrop.open .bottom-sheet { transform: translateY(0); }
+
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: var(--muted2);
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 4px;
+}
+.sheet-title { font-size: 18px; font-weight: 800; color: var(--text); }
+.sheet-close {
+  background: var(--bg3);
+  border: none;
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* ── CONCERT FORM ── */
+.form-group { margin: 16px 0; }
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+.form-required { color: var(--accent); }
+.form-optional { color: var(--muted2); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10px; }
+
+.form-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .2s;
+  -webkit-appearance: none;
+  color-scheme: dark;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--muted2); }
+
+.form-textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  resize: none;
+  height: 80px;
+  line-height: 1.6;
+  transition: border-color .2s;
+}
+.form-textarea:focus { border-color: var(--accent); }
+.form-textarea::placeholder { color: var(--muted2); }
+.form-char { font-size: 10px; color: var(--muted2); display: block; text-align: right; margin-top: 4px; }
+
+.fc-save-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #000;
+  font-size: 15px;
+  font-weight: 800;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-top: 8px;
+  transition: transform .15s;
+}
+.fc-save-btn:active { transform: scale(.97); }
+
+.fc-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: rgba(255,61,61,.1);
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid rgba(255,61,61,.25);
+  border-radius: var(--radius);
+  cursor: pointer;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+/* ── MY CONCERT DETAIL SHEET ── */
+.mdo-meta {
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 2px;
+}
+.mdo-meta.muted { color: var(--muted); font-size: 12px; }
+.mdo-score-pill {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+.mdo-notes {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+/* ── TIMELINE (Kronoloji) ── */
+.tl-year-group { padding: 0 20px; }
+
+.tl-year-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: .3px;
+}
+
+.tl-item {
+  display: flex;
+  gap: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .15s;
+}
+.tl-item:last-child { border-bottom: none; }
+.tl-item:active { background: rgba(255,255,255,.03); }
+
+.tl-date-col {
+  width: 40px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 2px;
+  gap: 2px;
+}
+.tl-month {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: .4px;
+}
+.tl-day {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1;
+}
+
+.tl-line-wrap {
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 4px;
+}
+.tl-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.tl-line {
+  width: 1px;
+  flex: 1;
+  background: var(--line);
+  margin-top: 4px;
+  min-height: 20px;
+}
+
+.tl-body {
+  flex: 1;
+  padding-left: 4px;
+  padding-top: 2px;
+}
+.tl-artist { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.tl-venue-city { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.tl-score {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.tl-notes {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+/* ── TOAST ── */
+.toast {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--bg4);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity .25s, transform .25s;
+  z-index: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ── ATTENDEE PROFILE OVERLAY ── */
 #profile-overlay {
   z-index: 200;

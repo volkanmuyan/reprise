@@ -1,0 +1,19 @@
+{
+  "name": "encore",
+  "version": "1.0.0",
+  "description": "Concert history tracking app",
+  "scripts": {
+    "prebuild": "cp index.html app.js style.css www/",
+    "cap:sync": "npm run prebuild && npx cap sync",
+    "cap:ios": "npm run prebuild && npx cap sync && npx cap open ios",
+    "cap:android": "npm run prebuild && npx cap sync && npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/android": "^6.2.0"
+  }
+}
