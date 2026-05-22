@@ -1,6 +1,6 @@
 {
-  "appId": "com.encore.app",
-  "appName": "Encore",
+  "appId": "com.reprise.app",
+  "appName": "Reprise",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

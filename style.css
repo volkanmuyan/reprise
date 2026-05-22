@@ -7,8 +7,8 @@
   --bg3:      #1A1A1A;
   --bg4:      #222222;
   --line:     #2A2A2A;
-  --text:     #FFFFFF;
-  --muted:    #777777;
+  --text:     #F5F3EF;
+  --muted:    #8A8780;
   --muted2:   #444444;
   --accent:   #C8FF00;
   --accent2:  #A8D900;
@@ -80,6 +80,8 @@ html, body {
   color: var(--accent);
   text-transform: lowercase;
 }
+.logo-wrap { display: flex; flex-direction: column; gap: 2px; }
+.tagline { font-size: 9px; color: var(--muted); font-style: italic; letter-spacing: .1px; line-height: 1.3; }
 .icon-btn {
   background: none;
   border: none;

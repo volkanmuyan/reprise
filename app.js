@@ -241,7 +241,7 @@ let fcRating = null;
 let currentDetailId = null;
 
 // ── MY CONCERT HISTORY (localStorage) ──
-const HISTORY_KEY = 'encore_history';
+const HISTORY_KEY = 'reprise_history';
 
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
@@ -540,31 +540,31 @@ async function shareProfile() {
     : null;
 
   const text = count > 0
-    ? `${count} konser gördüm${avg ? `, ortalamam ${avg}/10` : ''}. Encore’da konser geçmişimi takip ediyorum!`
-    : 'Encore’da konser geçmişimi takip ediyorum!';
+    ? `${count} konser gördüm${avg ? `, ortalamam ${avg}/10` : ‘’}. Reprise’da konser geçmişimi takip ediyorum!`
+    : ‘Reprise\’da konser geçmişimi takip ediyorum!’;
 
   const shareData = {
-    title: 'Encore — Konser Geçmişim',
+    title: ‘Reprise — Konser Geçmişim’,
     text,
-    url: 'https://volkanmuyan.github.io/encore/',
+    url: ‘https://volkanmuyan.github.io/reprise/’,
   };
 
   if (navigator.share) {
     try { await navigator.share(shareData); } catch (_) {}
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(`${text} ${shareData.url}`)
-      .then(() => showToast('Kopyalandı!'));
+      .then(() => showToast(‘Kopyalandı!’));
   } else {
-    showToast('encore — volkanmuyan.github.io/encore');
+    showToast(‘reprise — volkanmuyan.github.io/reprise’);
   }
 }
 
 // ── TOAST ──
 function showToast(msg) {
-  const existing = document.getElementById('encore-toast');
+  const existing = document.getElementById('reprise-toast');
   if (existing) existing.remove();
   const toast = document.createElement('div');
-  toast.id = 'encore-toast';
+  toast.id = 'reprise-toast';
   toast.className = 'toast';
   toast.textContent = msg;
   document.querySelector('.app-shell').appendChild(toast);
