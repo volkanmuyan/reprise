@@ -241,8 +241,8 @@
   // ── PUBLIC API ───────────────────────────
   const DataService = {
 
-    // Backend base URL — override via window.REPRISE_API_BASE before loading this file
-    apiBase: (global.REPRISE_API_BASE) || '/api',
+    // Backend base URL
+    apiBase: (global.REPRISE_API_BASE) || 'https://reprise-api.vercel.app/api',
 
     // ── Concert data ──
     getEvent(id)     { return EVENTS[id] || null; },
