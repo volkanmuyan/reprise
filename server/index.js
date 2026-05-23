@@ -1,0 +1,43 @@
+'use strict';
+require('dotenv').config();
+
+const express    = require('express');
+const cors       = require('cors');
+const rateLimit  = require('express-rate-limit');
+
+const spotifyRouter  = require('./routes/spotify');
+const concertsRouter = require('./routes/concerts');
+
+const app = express();
+
+// ── CORS ─────────────────────────────────────
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+
+// ── BODY PARSING ─────────────────────────────
+app.use(express.json());
+
+// ── RATE LIMITING ────────────────────────────
+const limiter = rateLimit({ windowMs: 60_000, max: 60 });
+app.use('/api/', limiter);
+
+// ── ROUTES ───────────────────────────────────
+app.use('/api/spotify',  spotifyRouter);
+app.use('/api/concerts', concertsRouter);
+
+// ── HEALTH ───────────────────────────────────
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
+
+// ── START ────────────────────────────────────
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Reprise API → http://localhost:${PORT}`);
+  console.log(`Spotify connected: ${!!process.env.SPOTIFY_CLIENT_ID}`);
+  console.log(`Ticketmaster connected: ${!!process.env.TICKETMASTER_API_KEY}`);
+});

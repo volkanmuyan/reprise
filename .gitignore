@@ -3,3 +3,6 @@ ios/
 android/
 www/
 *.DS_Store
+.env
+server/.env
+*.env.local

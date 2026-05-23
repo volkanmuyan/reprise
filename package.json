@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "gittiğin her konser, tekrar tekrar yaşanan bir nakarat.",
   "scripts": {
-    "prebuild": "cp index.html app.js style.css www/",
+    "prebuild": "cp index.html data-service.js app.js style.css www/",
     "cap:sync": "npm run prebuild && npx cap sync",
     "cap:ios": "npm run prebuild && npx cap sync && npx cap open ios",
     "cap:android": "npm run prebuild && npx cap sync && npx cap open android"
