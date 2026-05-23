@@ -261,6 +261,63 @@
       </div>
     </div>
 
+    <!-- ── SCREEN: COMMUNITIES ── -->
+    <div class="screen" id="screen-communities">
+      <header class="top-bar">
+        <span class="logo">sahneler</span>
+      </header>
+      <div class="scroll-area">
+        <div class="genre-chips" id="community-chips">
+          <button class="chip active" data-filter="all">Tümü</button>
+          <button class="chip" data-filter="İstanbul">İstanbul</button>
+          <button class="chip" data-filter="Ankara">Ankara</button>
+          <button class="chip" data-filter="İzmir">İzmir</button>
+          <button class="chip" data-filter="Electronic">Electronic</button>
+          <button class="chip" data-filter="Indie Rock">Indie Rock</button>
+          <button class="chip" data-filter="Trip-Hop">Trip-Hop</button>
+          <button class="chip" data-filter="Art Pop">Art Pop</button>
+        </div>
+        <div class="community-grid" id="community-grid"></div>
+        <div style="height:24px"></div>
+      </div>
+    </div>
+
+    <!-- ── OVERLAY: COMMUNITY DETAIL ── -->
+    <div class="overlay" id="community-overlay">
+      <div class="overlay-inner">
+        <button class="back-btn" onclick="closeCommunity()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="event-cover" id="co-cover"></div>
+        <div class="event-detail-body">
+          <div class="event-top-row">
+            <div>
+              <p class="eo-venue" id="co-genre-city"></p>
+              <h1 class="eo-title" id="co-name"></h1>
+              <p class="eo-date" id="co-description"></p>
+            </div>
+            <div class="community-member-count" id="co-member-count"></div>
+          </div>
+
+          <button class="community-join-btn" id="co-join-btn" onclick="toggleCurrentCommunity()"></button>
+
+          <!-- Upcoming Events -->
+          <div class="attendees-section" id="co-events-section">
+            <h3 class="section-mini-title">Yaklaşan Konserler</h3>
+            <div class="card-row" id="co-events-grid"></div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="attendees-section" id="co-activity-section">
+            <h3 class="section-mini-title">Son Aktivite</h3>
+            <div class="activity-feed" id="co-activity-feed"></div>
+          </div>
+
+          <div style="height:32px"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── SCREEN: ACTIVITY ── -->
     <div class="screen" id="screen-activity">
       <header class="top-bar">
@@ -388,6 +445,20 @@
             <span class="pstat-num">12</span>
             <span class="pstat-label">Listeme</span>
           </div>
+          <div class="pstat-divider"></div>
+          <div class="pstat">
+            <span class="pstat-num" id="stat-communities">0</span>
+            <span class="pstat-label">Sahne</span>
+          </div>
+        </div>
+
+        <!-- Joined Communities strip -->
+        <div id="profile-communities-wrap" style="display:none">
+          <div class="section-header" style="padding:16px 20px 8px">
+            <span class="section-title">Katıldığım Sahneler</span>
+            <button class="see-all" onclick="navigate('screen-communities')">Tümü</button>
+          </div>
+          <div class="profile-communities-strip" id="profile-communities-strip"></div>
         </div>
 
         <div class="profile-tabs">
@@ -673,6 +744,10 @@
       <button class="nav-item" onclick="navigate('screen-search')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <span>Keşfet</span>
+      </button>
+      <button class="nav-item" onclick="navigate('screen-communities')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Sahneler</span>
       </button>
       <button class="nav-item" onclick="navigate('screen-activity')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>

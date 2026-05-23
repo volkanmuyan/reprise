@@ -224,8 +224,83 @@
     },
   };
 
+  // ── STATIC: COMMUNITIES ─────────────────
+  const COMMUNITIES = [
+    {
+      id: 'istanbul-indie',
+      name: 'İstanbul Indie',
+      description: 'İstanbul\'un indie rock ve dream pop sahnesi. Her hafta yeni keşifler, her ay yeni konserler.',
+      city: 'İstanbul', genre: 'Indie Rock', memberCount: 342,
+      cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800&q=80',
+      upcomingEvents: ['arcade-fire', 'radiohead'],
+      recentActivity: [
+        { user: 'selin.k', img: 'https://i.pravatar.cc/40?img=3',  action: 'katıldı',       event: 'Arcade Fire',  time: '2s önce' },
+        { user: 'can.o',   img: 'https://i.pravatar.cc/40?img=20', action: 'puan verdi',    event: 'Radiohead',    time: '1g önce' },
+      ],
+    },
+    {
+      id: 'ankara-elektronik',
+      name: 'Ankara Elektronik',
+      description: 'Ankara\'nın elektronik müzik ve trip-hop topluluğu. Sahne, ses ve atmosfer.',
+      city: 'Ankara', genre: 'Electronic', memberCount: 189,
+      cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80',
+      upcomingEvents: ['massive-attack'],
+      recentActivity: [
+        { user: 'mert.d', img: 'https://i.pravatar.cc/40?img=12', action: 'gitmek istiyor', event: 'Massive Attack', time: '5s önce' },
+      ],
+    },
+    {
+      id: 'trip-hop-sahne',
+      name: 'Trip-Hop Sahne',
+      description: 'Portishead, Massive Attack, Björk... Karanlık ve derin müziğin sevenler için.',
+      city: 'Türkiye', genre: 'Trip-Hop', memberCount: 521,
+      cover: 'https://images.unsplash.com/photo-1501386761578-eaa54b7c5b25?w=800&q=80',
+      upcomingEvents: ['portishead', 'massive-attack'],
+      recentActivity: [
+        { user: 'naz.k',    img: 'https://i.pravatar.cc/40?img=44', action: 'katıldı',   event: 'Portishead', time: '1g önce' },
+        { user: 'zeynep.a', img: 'https://i.pravatar.cc/40?img=7',  action: 'puan verdi', event: 'Portishead', time: '2g önce' },
+      ],
+    },
+    {
+      id: 'art-pop-kollektif',
+      name: 'Art Pop Kollektif',
+      description: 'Björk, FKA Twigs, Grimes... Sanatın müzikle buluştuğu yer.',
+      city: 'İzmir', genre: 'Art Pop', memberCount: 278,
+      cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80',
+      upcomingEvents: ['bjork'],
+      recentActivity: [
+        { user: 'deniz.y', img: 'https://i.pravatar.cc/40?img=16', action: 'katıldı', event: 'Björk', time: '3g önce' },
+      ],
+    },
+    {
+      id: 'electronic-beats',
+      name: 'Electronic Beats',
+      description: 'Bonobo, Four Tet, Jon Hopkins... Elektronik müziğin melodik ve organik yüzü.',
+      city: 'İstanbul', genre: 'Electronic', memberCount: 412,
+      cover: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=800&q=80',
+      upcomingEvents: ['bonobo', 'thom-yorke'],
+      recentActivity: [
+        { user: 'volkan.m', img: 'https://i.pravatar.cc/40?img=15', action: 'gitmek istiyor', event: 'Bonobo', time: '4s önce' },
+        { user: 'can.o',    img: 'https://i.pravatar.cc/40?img=20', action: 'gitmek istiyor', event: 'Bonobo', time: '6s önce' },
+      ],
+    },
+    {
+      id: 'alternatif-istanbul',
+      name: 'Alternatif İstanbul',
+      description: 'İstanbul\'un alternatif ve shoegaze sahnesini takip edenler için buluşma noktası.',
+      city: 'İstanbul', genre: 'Alternative', memberCount: 634,
+      cover: 'https://images.unsplash.com/photo-1540039155733-5bb30b4bd1cd?w=800&q=80',
+      upcomingEvents: ['thom-yorke', 'radiohead'],
+      recentActivity: [
+        { user: 'ali.b',   img: 'https://i.pravatar.cc/40?img=8',  action: 'fotoğraf ekledi', event: 'Radiohead',  time: '1g önce' },
+        { user: 'burak.s', img: 'https://i.pravatar.cc/40?img=33', action: 'yorum yaptı',     event: 'Thom Yorke', time: '2g önce' },
+      ],
+    },
+  ];
+
   // ── STORAGE ──────────────────────────────
-  const HISTORY_KEY = 'reprise_history';
+  const HISTORY_KEY      = 'reprise_history';
+  const COMMUNITY_KEY    = 'reprise_communities';
 
   // ── COVER POOL ───────────────────────────
   const COVER_POOL = [
@@ -251,6 +326,30 @@
 
     // ── User data ──
     getUser(username) { return USERS[username] || null; },
+
+    // ── Community data ──
+    getCommunity(id)    { return COMMUNITIES.find(c => c.id === id) || null; },
+    getAllCommunities()  { return COMMUNITIES; },
+
+    // ── Community memberships (localStorage) ──
+    getMemberships() {
+      try { return JSON.parse(localStorage.getItem(COMMUNITY_KEY) || '[]'); }
+      catch { return []; }
+    },
+    saveMemberships(ids) {
+      localStorage.setItem(COMMUNITY_KEY, JSON.stringify(ids));
+    },
+    isMember(id) {
+      return DataService.getMemberships().includes(id);
+    },
+    toggleMembership(id) {
+      const current = DataService.getMemberships();
+      const joined  = current.includes(id);
+      DataService.saveMemberships(
+        joined ? current.filter(x => x !== id) : [...current, id]
+      );
+      return !joined; // returns new state
+    },
 
     // ── Personal history (localStorage) ──
     getHistory() {

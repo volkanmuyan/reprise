@@ -4,6 +4,7 @@ let currentRating = null;
 let currentEvent = null;
 let fcRating = null;
 let currentDetailId = null;
+let currentCommunityId = null;
 
 // ── ALIASES ── (convenience shortcuts to DataService)
 const loadHistory  = ()  => DataService.getHistory();
@@ -270,6 +271,144 @@ function handleSheetBackdrop(event, overlayId) {
   }
 }
 
+// ── COMMUNITIES ──────────────────────────────────────────────────────────────
+
+function renderCommunities(filter) {
+  const grid = document.getElementById('community-grid');
+  if (!grid) return;
+
+  const all = DataService.getAllCommunities();
+  const filtered = !filter || filter === 'all'
+    ? all
+    : all.filter(c => c.city === filter || c.genre === filter);
+
+  grid.innerHTML = filtered.map(c => {
+    const joined = DataService.isMember(c.id);
+    return `
+      <div class="community-card" onclick="openCommunity('${c.id}')">
+        <div class="community-card-img" style="background-image:url('${c.cover}')"></div>
+        <div class="community-card-overlay">
+          <span class="community-genre-badge">${c.genre}</span>
+        </div>
+        <div class="community-card-body">
+          <h4 class="community-card-name">${c.name}</h4>
+          <p class="community-card-meta">${c.city} · ${c.memberCount} üye</p>
+          <button class="community-card-join ${joined ? 'joined' : ''}"
+            onclick="event.stopPropagation(); handleCardJoin(this, '${c.id}')">
+            ${joined ? '✓ Üyesin' : '+ Katıl'}
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function handleCardJoin(btn, id) {
+  const joined = DataService.toggleMembership(id);
+  btn.classList.toggle('joined', joined);
+  btn.textContent = joined ? '✓ Üyesin' : '+ Katıl';
+  refreshProfileCommunities();
+  showToast(joined ? 'Sahneye katıldın!' : 'Sahneden ayrıldın');
+}
+
+function openCommunity(id) {
+  const c = DataService.getCommunity(id);
+  if (!c) return;
+  currentCommunityId = id;
+
+  document.getElementById('co-cover').style.backgroundImage = `url('${c.cover}')`;
+  document.getElementById('co-name').textContent = c.name;
+  document.getElementById('co-genre-city').textContent = `${c.city} · ${c.genre}`;
+  document.getElementById('co-description').textContent = c.description;
+  document.getElementById('co-member-count').textContent = c.memberCount + ' üye';
+
+  updateCommunityJoinBtn();
+
+  // Upcoming events
+  const evGrid = document.getElementById('co-events-grid');
+  evGrid.innerHTML = '';
+  (c.upcomingEvents || []).forEach(evId => {
+    const ev = DataService.getEvent(evId);
+    if (!ev) return;
+    const card = document.createElement('div');
+    card.className = 'event-card';
+    card.onclick = () => openEvent(evId);
+    card.innerHTML = `
+      <div class="event-card-img" style="background-image:url('${ev.cover}')"></div>
+      <div class="event-card-body">
+        <p class="card-venue">${ev.venue}</p>
+        <h4 class="card-name">${ev.title}</h4>
+        <p class="card-date">${ev.date}</p>
+        <div class="card-footer">
+          <span class="card-rating">${ev.score}</span>
+        </div>
+      </div>`;
+    evGrid.appendChild(card);
+  });
+
+  // Recent activity
+  const feed = document.getElementById('co-activity-feed');
+  feed.innerHTML = (c.recentActivity || []).map(a => `
+    <div class="activity-item">
+      <img class="av" src="${a.img}" alt="">
+      <div class="activity-info">
+        <p><strong>${a.user}</strong> <span class="activity-label attended">${a.action}</span></p>
+        <p class="activity-event">${a.event}</p>
+        <div class="mini-stars"><span class="activity-time">${a.time}</span></div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('community-overlay').classList.add('open');
+  document.getElementById('community-overlay').scrollTop = 0;
+}
+
+function closeCommunity() {
+  document.getElementById('community-overlay').classList.remove('open');
+  currentCommunityId = null;
+}
+
+function updateCommunityJoinBtn() {
+  if (!currentCommunityId) return;
+  const btn = document.getElementById('co-join-btn');
+  const joined = DataService.isMember(currentCommunityId);
+  btn.textContent = joined ? '✓ Üyesin' : '+ Sahneye Katıl';
+  btn.className = 'community-join-btn' + (joined ? ' joined' : '');
+}
+
+function toggleCurrentCommunity() {
+  if (!currentCommunityId) return;
+  const joined = DataService.toggleMembership(currentCommunityId);
+  updateCommunityJoinBtn();
+  renderCommunities();
+  refreshProfileCommunities();
+  showToast(joined ? 'Sahneye katıldın!' : 'Sahneden ayrıldın');
+}
+
+function refreshProfileCommunities() {
+  const memberships = DataService.getMemberships();
+  const wrap  = document.getElementById('profile-communities-wrap');
+  const strip = document.getElementById('profile-communities-strip');
+  const statEl = document.getElementById('stat-communities');
+
+  if (statEl) statEl.textContent = memberships.length;
+  if (!wrap || !strip) return;
+
+  if (memberships.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  strip.innerHTML = memberships.map(id => {
+    const c = DataService.getCommunity(id);
+    if (!c) return '';
+    return `
+      <div class="profile-community-chip" onclick="openCommunity('${c.id}')">
+        <div class="pcc-img" style="background-image:url('${c.cover}')"></div>
+        <span class="pcc-name">${c.name}</span>
+      </div>`;
+  }).join('');
+}
+
 // ── SHARE PROFILE ──
 async function shareProfile() {
   const history = loadHistory();
@@ -321,7 +460,7 @@ function navigate(screenId) {
   const target = document.getElementById(screenId);
   if (target) target.classList.add('active');
 
-  const map = { 'screen-home': 0, 'screen-search': 1, 'screen-activity': 2, 'screen-profile': 3 };
+  const map = { 'screen-home': 0, 'screen-search': 1, 'screen-communities': 2, 'screen-activity': 3, 'screen-profile': 4 };
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
   if (map[screenId] !== undefined) {
     document.querySelectorAll('.nav-item')[map[screenId]]?.classList.add('active');
@@ -334,6 +473,10 @@ function navigate(screenId) {
     refreshProfileStats();
     renderMyAttended();
     renderTimeline();
+    refreshProfileCommunities();
+  }
+  if (screenId === 'screen-communities') {
+    renderCommunities();
   }
 }
 
@@ -583,9 +726,26 @@ profileOverlay.addEventListener('touchend', e => {
   if (dy > 80 && profileOverlay.scrollTop === 0) closeProfile();
 }, { passive: true });
 
+// ── COMMUNITY CHIP FILTER ──
+document.getElementById('community-chips')?.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', function () {
+    document.getElementById('community-chips').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+    renderCommunities(this.dataset.filter);
+  });
+});
+
+// ── SWIPE TO CLOSE: community overlay ──
+const communityOverlay = document.getElementById('community-overlay');
+communityOverlay.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+communityOverlay.addEventListener('touchend', e => {
+  if (e.changedTouches[0].clientY - touchStartY > 80 && communityOverlay.scrollTop === 0) closeCommunity();
+}, { passive: true });
+
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   refreshProfileStats();
   renderMyAttended();
   renderTimeline();
+  refreshProfileCommunities();
 });
