@@ -539,9 +539,8 @@ async function shareProfile() {
     ? (rated.reduce((s, c) => s + Number(c.rating), 0) / rated.length).toFixed(1)
     : null;
 
-  const text = count > 0
-    ? `${count} konser gördüm${avg ? `, ortalamam ${avg}/10` : ‘’}. Reprise’da konser geçmişimi takip ediyorum!`
-    : ‘Reprise\’da konser geçmişimi takip ediyorum!’;
+  const text = (count > 0 ? count + " konser gördüm" + (avg ? ", ortalamam " + avg + "/10" : "") + ". " : "") + "Reprise'da konser geçmişimi takip ediyorum!";
+
 
   const shareData = {
     title: ‘Reprise — Konser Geçmişim’,
