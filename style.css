@@ -19,14 +19,19 @@
   --radius-sm:8px;
 }
 
-html, body {
-  height: 100%;
+html {
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  min-height: 100vh;
   background: #000;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+  overflow-y: auto;
+  padding: 20px 0;
 }
 
 /* ── APP SHELL ── */
