@@ -541,20 +541,19 @@ async function shareProfile() {
 
   const text = (count > 0 ? count + " konser gördüm" + (avg ? ", ortalamam " + avg + "/10" : "") + ". " : "") + "Reprise'da konser geçmişimi takip ediyorum!";
 
-
   const shareData = {
-    title: ‘Reprise — Konser Geçmişim’,
+    title: 'Reprise — Konser Geçmişim',
     text,
-    url: ‘https://volkanmuyan.github.io/reprise/’,
+    url: 'https://volkanmuyan.github.io/reprise/',
   };
 
   if (navigator.share) {
     try { await navigator.share(shareData); } catch (_) {}
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(`${text} ${shareData.url}`)
-      .then(() => showToast(‘Kopyalandı!’));
+      .then(() => showToast('Kopyalandı!'));
   } else {
-    showToast(‘reprise — volkanmuyan.github.io/reprise’);
+    showToast('reprise — volkanmuyan.github.io/reprise');
   }
 }
 
