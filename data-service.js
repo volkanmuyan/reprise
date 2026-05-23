@@ -299,8 +299,27 @@
   ];
 
   // ── STORAGE ──────────────────────────────
-  const HISTORY_KEY      = 'reprise_history';
-  const COMMUNITY_KEY    = 'reprise_communities';
+  const HISTORY_KEY       = 'reprise_history';
+  const COMMUNITY_KEY     = 'reprise_communities';
+  const SPOTIFY_TOKEN_KEY = 'reprise_spotify';
+
+  // GitHub Pages redirect URI for PKCE
+  const SPOTIFY_PKCE_REDIRECT = 'https://volkanmuyan.github.io/reprise/';
+
+  // ── PKCE helpers (private) ──
+  function _pkceVerifier() {
+    const arr = new Uint8Array(32);
+    crypto.getRandomValues(arr);
+    return btoa(String.fromCharCode(...arr))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function _pkceChallenge(verifier) {
+    const data = new TextEncoder().encode(verifier);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(hash)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
 
   // ── COVER POOL ───────────────────────────
   const COVER_POOL = [
@@ -368,36 +387,140 @@
       return COVER_POOL[Math.abs(hash) % COVER_POOL.length];
     },
 
-    // ── Spotify: connection status ──
-    async spotifyStatus() {
+    // ══════════════════════════════════════
+    // SPOTIFY — PKCE (no client secret needed)
+    // Tokens stored in localStorage, API calls
+    // made directly to Spotify from the browser.
+    // ══════════════════════════════════════
+
+    spotifyIsConnected() {
       try {
-        const res = await fetch(DataService.apiBase + '/spotify/status');
-        return await res.json(); // { connected: bool }
-      } catch { return { connected: false }; }
+        const t = JSON.parse(localStorage.getItem(SPOTIFY_TOKEN_KEY) || 'null');
+        return !!(t && t.access_token);
+      } catch { return false; }
     },
 
-    // ── Spotify: initiate OAuth ──
-    spotifyConnect() {
-      window.location.href = DataService.apiBase + '/spotify/auth';
+    spotifyGetStoredTokens() {
+      try { return JSON.parse(localStorage.getItem(SPOTIFY_TOKEN_KEY) || 'null'); }
+      catch { return null; }
     },
 
-    // ── Spotify: top + followed artists ──
-    async spotifyArtists() {
-      try {
-        const [topRes, followedRes] = await Promise.all([
-          fetch(DataService.apiBase + '/spotify/top-artists'),
-          fetch(DataService.apiBase + '/spotify/followed-artists'),
-        ]);
-        const top     = topRes.ok     ? await topRes.json()     : [];
-        const followed = followedRes.ok ? await followedRes.json() : [];
-        return { top, followed };
-      } catch { return { top: [], followed: [] }; }
+    spotifySaveTokens(tokens) {
+      localStorage.setItem(SPOTIFY_TOKEN_KEY, JSON.stringify(tokens));
     },
 
-    // ── Concert recommendations (proxied via backend) ──
-    async getRecommendations() {
+    spotifyDisconnect() {
+      localStorage.removeItem(SPOTIFY_TOKEN_KEY);
+      sessionStorage.removeItem('spotify_verifier');
+    },
+
+    // Step 1 — fetch client ID from backend, generate PKCE challenge, redirect
+    async spotifyConnect() {
+      const cfg = await fetch(DataService.apiBase + '/spotify/config')
+        .then(r => r.json()).catch(() => null);
+      if (!cfg || !cfg.clientId) throw new Error('Spotify yapılandırılmamış');
+
+      const verifier  = _pkceVerifier();
+      const challenge = await _pkceChallenge(verifier);
+      sessionStorage.setItem('spotify_verifier', verifier);
+
+      const params = new URLSearchParams({
+        client_id:             cfg.clientId,
+        response_type:         'code',
+        redirect_uri:          SPOTIFY_PKCE_REDIRECT,
+        scope:                 'user-top-read user-follow-read',
+        code_challenge_method: 'S256',
+        code_challenge:        challenge,
+        state:                 'reprise-pkce',
+      });
+      window.location.href = 'https://accounts.spotify.com/authorize?' + params;
+    },
+
+    // Step 2 — called on page load when ?code= is in the URL
+    async spotifyHandleCallback(code) {
+      const verifier = sessionStorage.getItem('spotify_verifier');
+      if (!verifier) throw new Error('Verifier bulunamadı');
+
+      const cfg = await fetch(DataService.apiBase + '/spotify/config')
+        .then(r => r.json()).catch(() => null);
+      if (!cfg || !cfg.clientId) throw new Error('Config alınamadı');
+
+      const res = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id:     cfg.clientId,
+          grant_type:    'authorization_code',
+          code,
+          redirect_uri:  SPOTIFY_PKCE_REDIRECT,
+          code_verifier: verifier,
+        }),
+      });
+      if (!res.ok) throw new Error('Token alınamadı: ' + res.status);
+
+      const data = await res.json();
+      DataService.spotifySaveTokens({
+        access_token:  data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at:    Date.now() + data.expires_in * 1000,
+      });
+      sessionStorage.removeItem('spotify_verifier');
+    },
+
+    // Get a valid access token, refreshing if needed
+    async spotifyAccessToken() {
+      const t = DataService.spotifyGetStoredTokens();
+      if (!t) throw new Error('Spotify bağlı değil');
+
+      if (Date.now() > t.expires_at - 60_000) {
+        const cfg = await fetch(DataService.apiBase + '/spotify/config')
+          .then(r => r.json()).catch(() => null);
+        if (!cfg || !cfg.clientId) throw new Error('Config alınamadı');
+
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id:     cfg.clientId,
+            grant_type:    'refresh_token',
+            refresh_token: t.refresh_token,
+          }),
+        });
+        if (!res.ok) { DataService.spotifyDisconnect(); throw new Error('Refresh başarısız'); }
+        const data = await res.json();
+        t.access_token = data.access_token;
+        t.expires_at   = Date.now() + data.expires_in * 1000;
+        DataService.spotifySaveTokens(t);
+      }
+      return t.access_token;
+    },
+
+    // Fetch top + followed artists directly from Spotify
+    async spotifyGetArtists() {
+      const token = await DataService.spotifyAccessToken();
+      const headers = { Authorization: 'Bearer ' + token };
+
+      const [topRes, followedRes] = await Promise.allSettled([
+        fetch('https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term', { headers }),
+        fetch('https://api.spotify.com/v1/me/following?type=artist&limit=50', { headers }),
+      ]);
+
+      const top = topRes.status === 'fulfilled' && topRes.value.ok
+        ? (await topRes.value.json()).items || [] : [];
+      const followed = followedRes.status === 'fulfilled' && followedRes.value.ok
+        ? (await followedRes.value.json()).artists?.items || [] : [];
+
+      const all = [...top, ...followed];
+      const unique = [...new Map(all.map(a => [a.name.toLowerCase(), a.name])).values()];
+      return unique; // string[]
+    },
+
+    // ── Concert recommendations via backend (Ticketmaster) ──
+    async getRecommendations(artistNames) {
+      if (!artistNames || artistNames.length === 0) return [];
       try {
-        const res = await fetch(DataService.apiBase + '/concerts/recommendations');
+        const params = new URLSearchParams({ artists: artistNames.slice(0, 8).join(',') });
+        const res = await fetch(DataService.apiBase + '/concerts/recommendations?' + params);
         if (!res.ok) return [];
         return await res.json();
       } catch { return []; }

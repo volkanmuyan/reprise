@@ -53,45 +53,35 @@ router.get('/search', async (req, res) => {
 });
 
 // ── Recommendations ──────────────────────────
-// GET /api/concerts/recommendations
-// Merges Spotify top+followed artists with Ticketmaster TR events.
-// Requires Spotify to be connected (calls internal /api/spotify routes).
+// GET /api/concerts/recommendations?artists=Radiohead,Portishead,Björk
+// Frontend sends artist names from Spotify PKCE tokens; backend queries Ticketmaster.
 router.get('/recommendations', async (req, res) => {
-  if (!TM_KEY()) return res.json([]); // backend not configured yet
+  if (!TM_KEY()) return res.json([]);
+
+  const { artists, country = 'TR' } = req.query;
+  if (!artists) return res.json([]);
+
+  const names = artists.split(',').map(a => a.trim()).filter(Boolean).slice(0, 8);
+  if (names.length === 0) return res.json([]);
+
+  const cacheKey = `recs:${names.join(',').toLowerCase()}:${country}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
 
   try {
-    // Fetch Spotify artists from within the server (loopback call)
-    const baseUrl   = `http://localhost:${process.env.PORT || 3001}`;
-    const [topRes, followedRes] = await Promise.allSettled([
-      axios.get(`${baseUrl}/api/spotify/top-artists`),
-      axios.get(`${baseUrl}/api/spotify/followed-artists`),
-    ]);
-
-    const allArtists = [
-      ...(topRes.status     === 'fulfilled' ? topRes.value.data     : []),
-      ...(followedRes.status === 'fulfilled' ? followedRes.value.data : []),
-    ];
-
-    if (allArtists.length === 0) return res.json([]);
-
-    // Deduplicate
-    const unique = [...new Map(allArtists.map(a => [a.name.toLowerCase(), a])).values()];
-
-    // Query Ticketmaster for each artist (top 5 to limit API usage)
-    const top5 = unique.slice(0, 5);
     const results = await Promise.allSettled(
-      top5.map(artist =>
+      names.map(name =>
         axios.get(`${TM_BASE}/events.json`, {
           params: {
             apikey:             TM_KEY(),
-            keyword:            artist.name,
-            countryCode:        'TR',
+            keyword:            name,
+            countryCode:        country,
             size:               3,
             sort:               'date,asc',
             classificationName: 'Music',
           },
         }).then(r => ({
-          artist: artist.name,
+          artist: name,
           events: (r.data._embedded?.events || []).map(ev => ({
             id:    ev.id,
             name:  ev.name,
@@ -110,6 +100,7 @@ router.get('/recommendations', async (req, res) => {
       .map(r => r.value)
       .filter(r => r.events.length > 0);
 
+    cache.set(cacheKey, recommendations);
     res.json(recommendations);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -88,6 +88,16 @@ function authHeader(token) {
   return { headers: { Authorization: `Bearer ${token}` } };
 }
 
+// ── Public config for PKCE (client secret NOT exposed) ──
+// GET /api/spotify/config
+router.get('/config', (_req, res) => {
+  res.json({
+    clientId:    CLIENT_ID() || null,
+    redirectUri: process.env.SPOTIFY_REDIRECT_URI || null,
+    configured:  !!CLIENT_ID(),
+  });
+});
+
 // ── Connection status ────────────────────────
 // GET /api/spotify/status
 router.get('/status', (_req, res) => {

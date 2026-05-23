@@ -742,10 +742,145 @@ communityOverlay.addEventListener('touchend', e => {
   if (e.changedTouches[0].clientY - touchStartY > 80 && communityOverlay.scrollTop === 0) closeCommunity();
 }, { passive: true });
 
+// ── ACTIVITY TABS ──
+function switchActivityTab(btn, panelId) {
+  document.querySelectorAll('#screen-activity .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.activity-tab-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById(panelId);
+  if (panel) panel.style.display = 'block';
+  if (panelId === 'activity-personal') loadPersonalFeed();
+}
+
+// ── SPOTIFY UI ──
+function refreshSpotifyUI() {
+  const connected = DataService.spotifyIsConnected();
+  const disco = document.getElementById('spotify-disconnected');
+  const conn  = document.getElementById('spotify-connected');
+  if (disco) disco.style.display = connected ? 'none'  : 'flex';
+  if (conn)  conn.style.display  = connected ? 'flex' : 'none';
+}
+
+async function connectSpotify() {
+  try {
+    await DataService.spotifyConnect();
+  } catch (e) {
+    showToast('Spotify bağlanamadı: ' + e.message);
+  }
+}
+
+function disconnectSpotify() {
+  DataService.spotifyDisconnect();
+  refreshSpotifyUI();
+  document.getElementById('personal-feed-content').innerHTML = '';
+  showToast('Spotify bağlantısı kesildi');
+}
+
+// ── PERSONAL FEED (Sana Özel) ──
+async function loadPersonalFeed() {
+  const container = document.getElementById('personal-feed-content');
+  if (!container) return;
+
+  if (!DataService.spotifyIsConnected()) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding-top:48px">
+        <svg class="empty-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <p class="empty-title">Spotify Bağlı Değil</p>
+        <p class="empty-sub">Öneri görmek için profil sayfasından Spotify'ı bağla</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = renderRecsSkeletons();
+
+  try {
+    const artists = await DataService.spotifyGetArtists();
+    if (artists.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="padding-top:48px"><p class="empty-title">Sanatçı bulunamadı</p><p class="empty-sub">Spotify geçmişinde sanatçı yok</p></div>';
+      return;
+    }
+    const recs = await DataService.getRecommendations(artists);
+    renderRecommendations(container, recs, artists);
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state" style="padding-top:48px"><p class="empty-title">Hata oluştu</p><p class="empty-sub">${e.message}</p></div>`;
+  }
+}
+
+function renderRecsSkeletons() {
+  return Array.from({ length: 3 }, () => `
+    <div class="rec-skeleton">
+      <div class="rec-skeleton-img"></div>
+      <div class="rec-skeleton-body">
+        <div class="rec-skeleton-line wide"></div>
+        <div class="rec-skeleton-line short"></div>
+        <div class="rec-skeleton-line mid"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderRecommendations(container, recs, artists) {
+  if (!recs || recs.length === 0) {
+    const names = artists.slice(0, 3).join(', ');
+    container.innerHTML = `
+      <div class="empty-state" style="padding-top:48px">
+        <svg class="empty-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <p class="empty-title">Türkiye'de yakın konser yok</p>
+        <p class="empty-sub">${names} için TR'de bilet bulunamadı</p>
+      </div>`;
+    return;
+  }
+
+  const html = recs.map(({ artist, events }) => `
+    <div class="rec-artist-group">
+      <div class="rec-artist-header">
+        <span class="rec-artist-name">${artist}</span>
+        <span class="rec-event-count">${events.length} konser</span>
+      </div>
+      ${events.map(ev => `
+        <a class="rec-event-card" href="${ev.url}" target="_blank" rel="noopener">
+          ${ev.image ? `<div class="rec-event-img" style="background-image:url('${ev.image}')"></div>` : ''}
+          <div class="rec-event-info">
+            <span class="rec-event-name">${ev.name}</span>
+            <span class="rec-event-meta">${ev.date || ''}${ev.venue ? ' · ' + ev.venue : ''}${ev.city ? ', ' + ev.city : ''}</span>
+          </div>
+          <svg class="rec-event-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>`).join('')}
+    </div>`).join('');
+
+  container.innerHTML = `<div class="rec-header-row"><span class="rec-header-title">Sana Özel Konserler</span><span class="rec-header-sub">Spotify'dan ${artists.length} sanatçıya göre</span></div>${html}`;
+}
+
+// ── SPOTIFY CALLBACK (PKCE) ──
+async function initSpotifyCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code  = params.get('code');
+  const state = params.get('state');
+  if (!code || state !== 'reprise-pkce') return;
+
+  // Clean URL immediately so reloads don't retrigger
+  window.history.replaceState({}, '', window.location.pathname);
+
+  showToast('Spotify bağlanıyor…');
+  try {
+    await DataService.spotifyHandleCallback(code);
+    refreshSpotifyUI();
+    navigate('screen-activity');
+    setTimeout(() => {
+      const personalTab = document.querySelector('#screen-activity .tab:last-child');
+      if (personalTab) switchActivityTab(personalTab, 'activity-personal');
+    }, 200);
+    showToast('Spotify bağlandı!');
+  } catch (e) {
+    showToast('Bağlantı hatası: ' + e.message);
+  }
+}
+
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   refreshProfileStats();
   renderMyAttended();
   renderTimeline();
   refreshProfileCommunities();
+  refreshSpotifyUI();
+  initSpotifyCallback();
 });
