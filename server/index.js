@@ -34,6 +34,9 @@ app.use('/api/concerts', concertsRouter);
 // ── HEALTH ───────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
+// ── ROOT → redirect to frontend ──────────────
+app.get('/', (_req, res) => res.redirect('https://volkanmuyan.github.io/reprise/'));
+
 // ── START ────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
