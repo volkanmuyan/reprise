@@ -11,10 +11,20 @@ const concertsRouter = require('./routes/concerts');
 const app = express();
 
 // ── CORS ─────────────────────────────────────
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
+const builtinOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://volkanmuyan.github.io',
+];
+const envOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(s => s.trim())
+  : [];
+const allowedOrigins = [...new Set([...builtinOrigins, ...envOrigins])];
+
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.some(o => origin === o || origin.startsWith(o))) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
