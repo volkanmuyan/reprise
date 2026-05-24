@@ -473,6 +473,15 @@
           </div>
         </div>
 
+        <!-- Wrapped trigger -->
+        <button class="wrapped-trigger-btn" id="wrapped-trigger-btn" onclick="openWrapped()">
+          <div class="wrapped-trigger-left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>yılın özeti</span>
+          </div>
+          <span class="wrapped-trigger-arrow">paylaş →</span>
+        </button>
+
         <!-- Joined Communities strip -->
         <div id="profile-communities-wrap" style="display:none">
           <div class="section-header" style="padding:16px 20px 8px">
@@ -798,9 +807,14 @@
         <div class="sheet-handle"></div>
         <div class="sheet-header">
           <h2 class="sheet-title" id="mdo-artist"></h2>
-          <button class="sheet-close" onclick="closeMyConcertDetail()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <div style="display:flex;align-items:center;gap:4px">
+            <button class="sheet-close mdo-share-icon" id="mdo-share-btn" onclick="shareCurrentConcert()" title="Paylaş">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            </button>
+            <button class="sheet-close" onclick="closeMyConcertDetail()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
         <p class="mdo-meta" id="mdo-venue"></p>
         <p class="mdo-meta muted" id="mdo-date"></p>
@@ -951,6 +965,57 @@
       </div>
     </div>
 
+    <!-- ── SHARE PREVIEW OVERLAY ── -->
+    <div id="share-preview-overlay" class="share-overlay">
+      <div class="share-modal">
+        <button class="share-modal-close" onclick="closeSharePreview()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="share-ratio-bar">
+          <button class="share-ratio-btn active" id="sratio-story"  onclick="setShareRatio('story')">Story (9:16)</button>
+          <button class="share-ratio-btn"        id="sratio-square" onclick="setShareRatio('square')">Kare (1:1)</button>
+        </div>
+        <div class="share-img-wrap" id="share-img-wrap">
+          <div id="share-loading" class="share-loading">
+            <div class="share-spinner"></div>
+            <span>kart üretiliyor…</span>
+          </div>
+          <img id="share-preview-img" class="share-preview-img" src="" alt="" style="display:none">
+        </div>
+        <div class="share-modal-actions">
+          <button class="share-dl-btn"    id="share-dl-btn"    onclick="downloadShareCard()" disabled>İndir</button>
+          <button class="share-share-btn" id="share-share-btn" onclick="doShare()"            disabled>Paylaş</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WRAPPED OVERLAY ── -->
+    <div id="wrapped-overlay" class="share-overlay">
+      <div class="share-modal">
+        <button class="share-modal-close" onclick="closeWrapped()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="wrapped-modal-header">
+          <span class="wrapped-modal-title">yılın özeti</span>
+          <select id="wrapped-year-sel" class="wrapped-year-sel" onchange="loadWrapped(this.value)"></select>
+        </div>
+        <div class="share-img-wrap" id="wrapped-img-wrap">
+          <div id="wrapped-loading" class="share-loading">
+            <div class="share-spinner"></div>
+            <span>özet hazırlanıyor…</span>
+          </div>
+          <div id="wrapped-empty" class="share-empty" style="display:none">
+            <p>Bu yıl konser kaydı yok</p>
+          </div>
+          <img id="wrapped-preview-img" class="share-preview-img" src="" alt="" style="display:none">
+        </div>
+        <div class="share-modal-actions">
+          <button class="share-dl-btn"    id="wrapped-dl-btn"    onclick="downloadWrapped()"    disabled>İndir</button>
+          <button class="share-share-btn" id="wrapped-share-btn" onclick="doShareWrapped()"     disabled>Paylaş</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── BOTTOM NAV ── -->
     <nav class="bottom-nav">
       <button class="nav-item active" onclick="navigate('screen-home')">
@@ -977,7 +1042,10 @@
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
   <script src="data-service.js"></script>
+  <script src="share-service.js"></script>
+  <script src="wrapped-service.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

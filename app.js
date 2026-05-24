@@ -1432,6 +1432,164 @@ async function initSpotifyCallback() {
   }
 }
 
+// ── SHARE — Concert Card ──────────────────────────────────────────────────
+let _shareConcert = null;   // the concert being shared
+let _shareRatio   = 'story';
+let _shareDataUrl = null;   // current generated PNG
+
+function shareCurrentConcert() {
+  const c = DataService.getHistory().find(h => h.id === currentDetailId);
+  if (!c) { showToast('Konser bulunamadı'); return; }
+  _shareConcert = c;
+  _shareRatio   = 'story';
+  document.getElementById('sratio-story').classList.add('active');
+  document.getElementById('sratio-square').classList.remove('active');
+  document.getElementById('share-preview-overlay').classList.add('open');
+  _generateShareCard();
+}
+
+function closeSharePreview() {
+  document.getElementById('share-preview-overlay').classList.remove('open');
+  _shareDataUrl = null;
+}
+
+async function _generateShareCard() {
+  _setShareLoading(true);
+  try {
+    const user = DataService.getCurrentUser();
+    _shareDataUrl = await ShareService.concertCard(_shareConcert, user, _shareRatio);
+    _setShareLoading(false, _shareDataUrl);
+  } catch (e) {
+    closeSharePreview();
+    showToast('Kart oluşturulamadı: ' + (e.message || ''));
+  }
+}
+
+async function setShareRatio(ratio) {
+  if (_shareRatio === ratio) return;
+  _shareRatio = ratio;
+  document.getElementById('sratio-story').classList.toggle('active',  ratio === 'story');
+  document.getElementById('sratio-square').classList.toggle('active', ratio === 'square');
+  await _generateShareCard();
+}
+
+function _setShareLoading(loading, dataUrl) {
+  const loadEl = document.getElementById('share-loading');
+  const imgEl  = document.getElementById('share-preview-img');
+  const dlBtn  = document.getElementById('share-dl-btn');
+  const shBtn  = document.getElementById('share-share-btn');
+  loadEl.style.display = loading ? 'flex' : 'none';
+  imgEl.style.display  = loading ? 'none' : 'block';
+  if (!loading && dataUrl) imgEl.src = dataUrl;
+  dlBtn.disabled = loading;
+  shBtn.disabled = loading;
+}
+
+async function downloadShareCard() {
+  if (!_shareDataUrl) return;
+  const name = (_shareConcert?.artist || 'reprise').toLowerCase().replace(/\s+/g, '-');
+  const a = document.createElement('a');
+  a.href = _shareDataUrl;
+  a.download = `reprise-${name}-${_shareRatio}.png`;
+  a.click();
+}
+
+async function doShare() {
+  if (!_shareDataUrl) return;
+  const name = (_shareConcert?.artist || 'reprise').toLowerCase().replace(/\s+/g, '-');
+  const result = await ShareService.shareOrDownload(
+    _shareDataUrl,
+    `reprise-${name}-${_shareRatio}.png`
+  );
+  if (result === 'downloaded') showToast('Görsel indirildi!');
+}
+
+// ── WRAPPED ──────────────────────────────────────────────────────────────────
+let _wrappedStats   = null;
+let _wrappedDataUrl = null;
+let _wrappedRatio   = 'story';
+
+function openWrapped() {
+  const history = DataService.getHistory();
+  const years   = WrappedService.availableYears(history);
+
+  const sel = document.getElementById('wrapped-year-sel');
+  if (!years.length) {
+    sel.innerHTML = `<option value="">${new Date().getFullYear()}</option>`;
+  } else {
+    sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  }
+
+  document.getElementById('wrapped-overlay').classList.add('open');
+  document.getElementById('wrapped-dl-btn').disabled    = true;
+  document.getElementById('wrapped-share-btn').disabled = true;
+
+  if (years.length) {
+    loadWrapped(years[0]);
+  } else {
+    document.getElementById('wrapped-loading').style.display = 'none';
+    document.getElementById('wrapped-empty').style.display   = 'flex';
+    document.getElementById('wrapped-preview-img').style.display = 'none';
+  }
+}
+
+function closeWrapped() {
+  document.getElementById('wrapped-overlay').classList.remove('open');
+  _wrappedStats   = null;
+  _wrappedDataUrl = null;
+}
+
+async function loadWrapped(year) {
+  document.getElementById('wrapped-loading').style.display    = 'flex';
+  document.getElementById('wrapped-empty').style.display      = 'none';
+  document.getElementById('wrapped-preview-img').style.display = 'none';
+  document.getElementById('wrapped-dl-btn').disabled    = true;
+  document.getElementById('wrapped-share-btn').disabled = true;
+
+  const history = DataService.getHistory();
+  const stats   = WrappedService.compute(history, Number(year));
+
+  if (!stats) {
+    document.getElementById('wrapped-loading').style.display = 'none';
+    document.getElementById('wrapped-empty').style.display   = 'flex';
+    return;
+  }
+
+  _wrappedStats = stats;
+  try {
+    const user = DataService.getCurrentUser();
+    _wrappedDataUrl = await ShareService.wrappedCard(stats, user, _wrappedRatio);
+    const img = document.getElementById('wrapped-preview-img');
+    img.src = _wrappedDataUrl;
+    img.style.display = 'block';
+    document.getElementById('wrapped-loading').style.display = 'none';
+    document.getElementById('wrapped-dl-btn').disabled    = false;
+    document.getElementById('wrapped-share-btn').disabled = false;
+  } catch (e) {
+    closeWrapped();
+    showToast('Wrapped oluşturulamadı');
+  }
+}
+
+async function downloadWrapped() {
+  if (!_wrappedDataUrl) return;
+  const year = _wrappedStats?.year || new Date().getFullYear();
+  const a = document.createElement('a');
+  a.href = _wrappedDataUrl;
+  a.download = `reprise-wrapped-${year}.png`;
+  a.click();
+}
+
+async function doShareWrapped() {
+  if (!_wrappedDataUrl) return;
+  const year = _wrappedStats?.year || new Date().getFullYear();
+  const result = await ShareService.shareOrDownload(
+    _wrappedDataUrl,
+    `reprise-wrapped-${year}.png`
+  );
+  if (result === 'downloaded') showToast('Görsel indirildi!');
+}
+
 // ── SEARCH SCREEN: chip / section toggle ──
 document.getElementById('search-genre-chips')?.addEventListener('click', function(e) {
   const chip = e.target.closest('.chip');
