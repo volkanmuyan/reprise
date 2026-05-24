@@ -1660,7 +1660,7 @@ body {
   position: absolute;
   inset: 0;
   background: rgba(0,0,0,.7);
-  z-index: 200;
+  z-index: 450;
   display: flex;
   align-items: flex-end;
 }
@@ -1742,6 +1742,12 @@ body {
   flex-direction: column;
   gap: 14px;
   padding: 0 20px;
+}
+
+/* prevent iOS auto-zoom on input focus inside sheets */
+.sheet-overlay .auth-input,
+.settings-sheet .auth-input {
+  font-size: 16px;
 }
 
 /* ── Profile tabs scrollable ── */
@@ -2001,7 +2007,7 @@ body {
   position: absolute;
   inset: 0;
   background: rgba(0,0,0,.7);
-  z-index: 250;
+  z-index: 450;
   display: flex;
   align-items: flex-end;
 }

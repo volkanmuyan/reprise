@@ -456,6 +456,8 @@ function showToast(msg) {
 
 // ── NAVIGATION ──
 function navigate(screenId) {
+  closeAddConcert();
+  closeMyConcertDetail();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
   if (target) target.classList.add('active');
@@ -769,9 +771,10 @@ function resizeImage(file, maxPx, quality = 0.82) {
 function openEditProfile() {
   const user = DataService.getCurrentUser();
   if (!user) return;
-  document.getElementById('edit-displayname').value = user.displayName || '';
+  document.getElementById('edit-displayname').value = user.displayName || user.username || '';
   document.getElementById('edit-bio').value          = user.bio || '';
-  document.getElementById('edit-avatar-preview').src = user.avatar || '';
+  const avatarEl = document.getElementById('edit-avatar-preview');
+  if (avatarEl) avatarEl.src = user.avatar || '';
   document.getElementById('edit-profile-sheet').style.display = 'flex';
 }
 
@@ -789,9 +792,13 @@ async function handleAvatarFile(input) {
 function saveEditProfile() {
   const displayName = document.getElementById('edit-displayname').value.trim();
   const bio         = document.getElementById('edit-bio').value.trim();
-  const avatar      = document.getElementById('edit-avatar-preview').src;
 
   if (!displayName) { showToast('Ad boş olamaz'); return; }
+
+  const avatarEl  = document.getElementById('edit-avatar-preview');
+  const rawSrc    = avatarEl ? avatarEl.getAttribute('src') : '';
+  const avatar    = (rawSrc && rawSrc.startsWith('data:')) ? rawSrc
+                  : (DataService.getCurrentUser()?.avatar || '');
 
   const updated = DataService.updateCurrentUser({ displayName, bio, avatar });
   if (updated) {
