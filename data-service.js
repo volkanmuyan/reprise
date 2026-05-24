@@ -306,7 +306,7 @@
   const ACCOUNTS_KEY      = 'reprise_accounts';
 
   // GitHub Pages redirect URI for PKCE
-  const SPOTIFY_PKCE_REDIRECT = 'https://volkanmuyan.github.io/reprise/';
+  const SPOTIFY_PKCE_REDIRECT = 'https://volkanmuyan.github.io/reprise';
 
   // ── PKCE helpers (private) ──
   function _pkceVerifier() {
