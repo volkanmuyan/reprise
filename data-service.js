@@ -642,6 +642,18 @@
       } catch { return []; }
     },
 
+    // ── Setlist.fm search ──
+    async searchSetlists({ artist, city = '', year = '' } = {}) {
+      try {
+        const params = new URLSearchParams({ artist });
+        if (city) params.set('city', city);
+        if (year) params.set('year', year);
+        const res = await fetch(DataService.apiBase + '/setlists/search?' + params);
+        if (!res.ok) return [];
+        return await res.json();
+      } catch { return []; }
+    },
+
     // ── Concert search (Ticketmaster via backend) ──
     async searchConcerts({ artist, country = 'TR', size = 10 } = {}) {
       try {

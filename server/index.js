@@ -5,8 +5,9 @@ const express    = require('express');
 const cors       = require('cors');
 const rateLimit  = require('express-rate-limit');
 
-const spotifyRouter  = require('./routes/spotify');
-const concertsRouter = require('./routes/concerts');
+const spotifyRouter   = require('./routes/spotify');
+const concertsRouter  = require('./routes/concerts');
+const setlistsRouter  = require('./routes/setlists');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/', limiter);
 // ── ROUTES ───────────────────────────────────
 app.use('/api/spotify',  spotifyRouter);
 app.use('/api/concerts', concertsRouter);
+app.use('/api/setlists', setlistsRouter);
 
 // ── HEALTH ───────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));
@@ -53,4 +55,5 @@ app.listen(PORT, () => {
   console.log(`Reprise API → http://localhost:${PORT}`);
   console.log(`Spotify connected: ${!!process.env.SPOTIFY_CLIENT_ID}`);
   console.log(`Ticketmaster connected: ${!!process.env.TICKETMASTER_API_KEY}`);
+  console.log(`Setlist.fm connected: ${!!process.env.SETLIST_FM_API_KEY}`);
 });

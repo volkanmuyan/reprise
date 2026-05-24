@@ -2131,3 +2131,139 @@ body {
 .settings-item:active { background: #1a1a1a; }
 .settings-item.danger { color: #ff6b6b; }
 .nav-item span { font-size: 9px; }
+
+/* ── Setlist.fm search ── */
+.sl-search-box {
+  padding: 0 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sl-search-row {
+  display: flex;
+  gap: 6px;
+}
+.sl-search-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+.sl-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  transition: opacity .15s;
+}
+.sl-search-btn:disabled { opacity: .5; }
+.sl-search-btn:active   { opacity: .8; }
+
+.sl-results {
+  border: 1px solid #222;
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.sl-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1a1a1a;
+  cursor: pointer;
+  gap: 8px;
+  transition: background .1s;
+}
+.sl-result-item:last-child { border-bottom: none; }
+.sl-result-item:active { background: #1a1a1a; }
+.sl-result-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sl-result-artist { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-result-venue  { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-result-right  { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.sl-result-date   { font-size: 12px; font-weight: 600; color: var(--accent); }
+.sl-result-songs  { font-size: 10px; color: var(--muted2); }
+.sl-loading, .sl-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--muted); }
+
+.sl-manual-toggle {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+
+.sl-manual-form { padding: 0 16px; }
+
+.sl-selected-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(200,255,0,.08);
+  border: 1px solid rgba(200,255,0,.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--accent);
+}
+.sl-selected-banner svg { flex-shrink: 0; }
+.sl-selected-banner span { flex: 1; font-weight: 600; }
+.sl-clear-btn {
+  background: none; border: none; color: var(--muted);
+  font-size: 16px; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+
+/* ── Setlist in concert detail ── */
+.mdo-setlist-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin: 14px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mdo-setlist-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.mdo-sf-link {
+  font-size: 11px;
+  color: var(--muted2);
+  text-decoration: none;
+  margin-left: auto;
+}
+.mdo-songs {
+  list-style: decimal;
+  padding-left: 20px;
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mdo-songs li {
+  font-size: 13px;
+  color: var(--text);
+  padding: 5px 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+.mdo-songs li::marker { color: var(--muted2); font-size: 11px; }

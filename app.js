@@ -175,6 +175,22 @@ function openMyConcertDetail(id) {
 
   document.getElementById('mdo-delete').onclick = () => deleteConcert(id);
 
+  // Setlist section
+  let setlistHtml = document.getElementById('mdo-setlist');
+  if (!setlistHtml) {
+    setlistHtml = document.createElement('div');
+    setlistHtml.id = 'mdo-setlist';
+    document.getElementById('mdo-delete').before(setlistHtml);
+  }
+  if (c.songs && c.songs.length) {
+    setlistHtml.innerHTML = `
+      <p class="mdo-setlist-label">Setlist <span class="mdo-setlist-count">${c.songs.length} şarkı</span>${c.sfUrl ? `<a href="${c.sfUrl}" target="_blank" rel="noopener" class="mdo-sf-link">setlist.fm →</a>` : ''}</p>
+      <ol class="mdo-songs">${c.songs.map(s => `<li>${s}</li>`).join('')}</ol>`;
+    setlistHtml.style.display = 'block';
+  } else {
+    setlistHtml.style.display = 'none';
+  }
+
   document.getElementById('my-detail-overlay').classList.add('open');
 }
 
@@ -194,9 +210,24 @@ function deleteConcert(id) {
 }
 
 // ── ADD CONCERT FORM ──
+// ── Year dropdown helper ──
+function populateYearDropdown() {
+  const sel = document.getElementById('sl-year-input');
+  if (!sel || sel.options.length > 1) return;
+  const now = new Date().getFullYear();
+  for (let y = now; y >= 1960; y--) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    sel.appendChild(opt);
+  }
+}
+
+let _selectedSetlist = null;
+
 function openAddConcert() {
   fcRating = null;
-  const fields = ['fc-artist','fc-venue','fc-city','fc-notes'];
+  _selectedSetlist = null;
+  const fields = ['fc-artist','fc-venue','fc-city','fc-notes','sl-artist-input','sl-city-input'];
   fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const dateEl = document.getElementById('fc-date');
   if (dateEl) dateEl.value = '';
@@ -204,8 +235,98 @@ function openAddConcert() {
   if (charEl) charEl.textContent = '0/280';
   const noteEl = document.getElementById('fc-rating-note');
   if (noteEl) noteEl.textContent = 'Puanlamak için dokunun';
+  const results = document.getElementById('sl-results');
+  if (results) { results.innerHTML = ''; results.style.display = 'none'; }
+  const form = document.getElementById('add-concert-form');
+  if (form) form.style.display = 'none';
+  const banner = document.getElementById('sl-selected-banner');
+  if (banner) banner.style.display = 'none';
+  populateYearDropdown();
   initFCRating();
   document.getElementById('add-concert-overlay').classList.add('open');
+}
+
+async function doSetlistSearch() {
+  const artist = (document.getElementById('sl-artist-input')?.value || '').trim();
+  if (!artist) { showToast('Sanatçı adı gir'); return; }
+  const city   = (document.getElementById('sl-city-input')?.value  || '').trim();
+  const year   = document.getElementById('sl-year-input')?.value   || '';
+
+  const btn     = document.querySelector('.sl-search-btn');
+  const results = document.getElementById('sl-results');
+  if (btn) { btn.disabled = true; btn.textContent = 'Aranıyor…'; }
+  if (results) { results.style.display = 'block'; results.innerHTML = '<p class="sl-loading">Setlist.fm\'de aranıyor…</p>'; }
+
+  const data = await DataService.searchSetlists({ artist, city, year });
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Konser Ara`;
+  }
+
+  if (!data || data.length === 0) {
+    if (results) results.innerHTML = '<p class="sl-empty">Sonuç bulunamadı — şehir veya yılı değiştir, ya da manuel gir.</p>';
+    return;
+  }
+
+  if (results) results.innerHTML = data.map(s => `
+    <div class="sl-result-item" onclick="selectSetlist(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+      <div class="sl-result-main">
+        <span class="sl-result-artist">${s.artist}</span>
+        <span class="sl-result-venue">${s.venue}${s.city ? ' · ' + s.city : ''}</span>
+      </div>
+      <div class="sl-result-right">
+        <span class="sl-result-date">${formatSetlistDate(s.date)}</span>
+        ${s.songs.length ? `<span class="sl-result-songs">${s.songs.length} şarkı</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function formatSetlistDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T12:00:00');
+  const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function selectSetlist(s) {
+  _selectedSetlist = s;
+
+  document.getElementById('fc-artist').value = s.artist;
+  document.getElementById('fc-venue').value  = s.venue;
+  document.getElementById('fc-city').value   = s.city;
+  document.getElementById('fc-date').value   = s.date;
+
+  const banner = document.getElementById('sl-selected-banner');
+  const label  = document.getElementById('sl-selected-label');
+  if (banner) banner.style.display = 'flex';
+  if (label)  label.textContent = `${s.artist} · ${formatSetlistDate(s.date)}${s.songs.length ? ' · ' + s.songs.length + ' şarkı' : ''}`;
+
+  const results = document.getElementById('sl-results');
+  if (results) { results.style.display = 'none'; results.innerHTML = ''; }
+
+  const form = document.getElementById('add-concert-form');
+  if (form) form.style.display = 'block';
+
+  initFCRating();
+}
+
+function clearSetlistSelection() {
+  _selectedSetlist = null;
+  document.getElementById('sl-selected-banner').style.display = 'none';
+  ['fc-artist','fc-venue','fc-city','fc-date'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+
+function toggleManualEntry() {
+  const form = document.getElementById('add-concert-form');
+  if (!form) return;
+  const showing = form.style.display !== 'none';
+  form.style.display = showing ? 'none' : 'block';
+  const btn = document.getElementById('sl-manual-btn');
+  if (btn) btn.textContent = showing ? 'Veritabanında yok — manuel gir' : '← Aramaya dön';
+  if (!showing) initFCRating();
 }
 
 function closeAddConcert() {
@@ -243,14 +364,17 @@ function saveNewConcert(e) {
   if (!artist || !date) return;
 
   const concert = {
-    id: Date.now(),
+    id:         Date.now(),
     artist,
-    venue: get('fc-venue'),
-    city:  get('fc-city'),
+    venue:      get('fc-venue'),
+    city:       get('fc-city'),
     date,
-    rating: fcRating,
-    notes:  get('fc-notes'),
-    addedAt: new Date().toISOString(),
+    rating:     fcRating,
+    notes:      get('fc-notes'),
+    addedAt:    new Date().toISOString(),
+    setlistId:  _selectedSetlist?.id   || null,
+    songs:      _selectedSetlist?.songs || [],
+    sfUrl:      _selectedSetlist?.url  || null,
   };
 
   const history = loadHistory();
