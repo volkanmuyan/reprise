@@ -2271,3 +2271,88 @@ body {
   border-bottom: 1px solid #1a1a1a;
 }
 .mdo-songs li::marker { color: var(--muted2); font-size: 11px; }
+
+/* ── User search & follow ── */
+.user-search-hint {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 24px 0 8px;
+}
+
+.user-result-list {
+  padding: 4px 0 0;
+}
+
+.user-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: opacity .1s;
+}
+.user-result-item:last-child { border-bottom: none; }
+.user-result-item:active { opacity: .7; }
+
+.user-result-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg3);
+}
+
+.user-result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-result-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-result-username {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.follow-btn {
+  flex-shrink: 0;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.follow-btn.following {
+  background: var(--accent);
+  color: #000;
+}
+.follow-btn:active { opacity: .8; }
+
+.profile-follow-btn {
+  display: block;
+  width: calc(100% - 40px);
+  margin: 0 20px 16px;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  flex-shrink: unset;
+}

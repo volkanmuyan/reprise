@@ -305,6 +305,7 @@
   const USER_KEY          = 'reprise_user';
   const ACCOUNTS_KEY      = 'reprise_accounts';
   const POSTS_KEY         = 'reprise_posts';
+  const FOLLOWING_KEY     = 'reprise_following';
 
   // GitHub Pages redirect URI for PKCE
   const SPOTIFY_PKCE_REDIRECT = 'https://volkanmuyan.github.io/reprise';
@@ -652,6 +653,72 @@
         if (!res.ok) return [];
         return await res.json();
       } catch { return []; }
+    },
+
+    // ── Follow system (localStorage) ──
+    getFollowing() {
+      try { return JSON.parse(localStorage.getItem(FOLLOWING_KEY) || '[]'); }
+      catch { return []; }
+    },
+    saveFollowing(list) {
+      localStorage.setItem(FOLLOWING_KEY, JSON.stringify(list));
+    },
+    isFollowing(username) {
+      return DataService.getFollowing().includes(username);
+    },
+    followUser(username) {
+      const list = DataService.getFollowing();
+      if (!list.includes(username)) {
+        list.push(username);
+        DataService.saveFollowing(list);
+      }
+    },
+    unfollowUser(username) {
+      DataService.saveFollowing(DataService.getFollowing().filter(u => u !== username));
+    },
+    toggleFollow(username) {
+      const following = DataService.isFollowing(username);
+      if (following) DataService.unfollowUser(username);
+      else DataService.followUser(username);
+      return !following;
+    },
+
+    // Search both real accounts and static mock users
+    searchUsers(query) {
+      const q = (query || '').toLowerCase().trim();
+      if (!q) return [];
+      const currentUser = DataService.getCurrentUser();
+      const currentUsername = (currentUser?.username || '').toLowerCase();
+
+      const fromAccounts = DataService._getAccounts()
+        .filter(a => a.username.toLowerCase() !== currentUsername)
+        .filter(a =>
+          a.username.toLowerCase().includes(q) ||
+          (a.displayName || '').toLowerCase().includes(q)
+        )
+        .map(a => ({
+          username: a.username,
+          displayName: a.displayName || a.username,
+          bio: a.bio || '',
+          avatar: a.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(a.username)}`,
+        }));
+
+      const realSet = new Set(fromAccounts.map(a => a.username.toLowerCase()));
+      const fromStatic = Object.values(USERS)
+        .filter(u => u.username.toLowerCase() !== currentUsername)
+        .filter(u => !realSet.has(u.username.toLowerCase()))
+        .filter(u =>
+          u.username.toLowerCase().includes(q) ||
+          (u.bio || '').toLowerCase().includes(q)
+        )
+        .map(u => ({
+          username: u.username,
+          displayName: u.username,
+          bio: u.bio || '',
+          avatar: u.avatar || '',
+        }));
+
+      return [...fromAccounts, ...fromStatic].slice(0, 20);
     },
 
     // ── Concert search (Ticketmaster via backend) ──

@@ -173,7 +173,7 @@
           <input type="text" class="search-input" placeholder="Sanatçı, mekan, etkinlik…" />
         </div>
 
-        <div class="genre-chips">
+        <div class="genre-chips" id="search-genre-chips">
           <button class="chip active">Tümü</button>
           <button class="chip">Rock</button>
           <button class="chip">Electronic</button>
@@ -181,9 +181,21 @@
           <button class="chip">Hip-Hop</button>
           <button class="chip">Classical</button>
           <button class="chip">Festival</button>
+          <button class="chip" data-section="users">Kullanıcılar</button>
         </div>
 
-        <div class="search-grid">
+        <!-- User search section (shown when Kullanıcılar chip is active) -->
+        <div id="user-search-section" style="display:none;padding:4px 16px 8px">
+          <div class="search-box-wrap" style="margin-bottom:0">
+            <svg class="search-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="user-search-input" class="search-input" placeholder="Kullanıcı adı ara…" autocapitalize="none" autocorrect="off" />
+          </div>
+          <div id="user-result-list" class="user-result-list">
+            <p class="user-search-hint">Aramak için kullanıcı adını yaz</p>
+          </div>
+        </div>
+
+        <div class="search-grid" id="event-search-grid">
           <div class="search-card" onclick="openEvent('radiohead')">
             <div class="sc-img" style="background-image:url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=400&q=70')"></div>
             <div class="sc-overlay">
@@ -667,6 +679,8 @@
             </div>
           </div>
         </div>
+
+        <button id="po-follow-btn" class="follow-btn profile-follow-btn" style="display:none"></button>
 
         <div class="profile-stats-row">
           <div class="pstat">

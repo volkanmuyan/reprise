@@ -38,6 +38,12 @@ function formatFullDate(dateStr) {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// ── FOLLOW STATS ──
+function refreshFollowStats() {
+  const el = document.getElementById('profile-my-following');
+  if (el) el.textContent = DataService.getFollowing().length;
+}
+
 // ── PROFILE STATS ──
 function refreshProfileStats() {
   const history = loadHistory();
@@ -616,6 +622,7 @@ function navigate(screenId) {
 
   if (screenId === 'screen-profile') {
     refreshProfileStats();
+    refreshFollowStats();
     renderMyAttended();
     renderTimeline();
     refreshProfileCommunities();
@@ -741,21 +748,57 @@ function closeEvent() {
 
 // ── ATTENDEE PROFILE ──
 function openProfile(username) {
-  const u = DataService.getUser(username);
+  // Try real accounts first, then fall back to static mock data
+  const accounts = DataService._getAccounts();
+  const account = accounts.find(a => a.username.toLowerCase() === username.toLowerCase());
+  const staticUser = DataService.getUser(username);
+
+  const u = account ? {
+    username:    account.username,
+    displayName: account.displayName || account.username,
+    bio:         account.bio || '',
+    avatar:      account.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(account.username)}`,
+    cover:       null,
+    following:   null,
+    followers:   null,
+    concerts:    '—',
+    avgRating:   '—',
+    wishlist:    '—',
+    attended:    [],
+  } : staticUser;
+
   if (!u) return;
 
-  document.getElementById('po-cover').style.backgroundImage = `url('${u.cover}')`;
-  document.getElementById('po-avatar').src = u.avatar;
-  document.getElementById('po-name').textContent = u.username;
-  document.getElementById('po-bio').textContent = u.bio;
-  document.getElementById('po-follow').innerHTML = `<strong>${u.following}</strong> takip &nbsp; <strong>${u.followers}</strong> takipçi`;
-  document.getElementById('po-concerts').textContent = u.concerts;
-  document.getElementById('po-avg').textContent = u.avgRating;
-  document.getElementById('po-want').textContent = u.wishlist;
+  document.getElementById('po-cover').style.backgroundImage = u.cover ? `url('${u.cover}')` : 'none';
+  document.getElementById('po-avatar').src = u.avatar || '';
+  document.getElementById('po-name').textContent = u.displayName || u.username;
+  document.getElementById('po-bio').textContent = u.bio || '';
+  document.getElementById('po-follow').innerHTML = (u.following != null)
+    ? `<strong>${u.following}</strong> takip &nbsp; <strong>${u.followers}</strong> takipçi`
+    : '';
+  document.getElementById('po-concerts').textContent = u.concerts ?? '—';
+  document.getElementById('po-avg').textContent = u.avgRating ?? '—';
+  document.getElementById('po-want').textContent = u.wishlist ?? '—';
+
+  // Follow button
+  const currentUser = DataService.getCurrentUser();
+  const isOwnProfile = currentUser && currentUser.username.toLowerCase() === (u.username || '').toLowerCase();
+  const followBtn = document.getElementById('po-follow-btn');
+  if (followBtn) {
+    if (isOwnProfile) {
+      followBtn.style.display = 'none';
+    } else {
+      followBtn.style.display = 'block';
+      const following = DataService.isFollowing(u.username);
+      followBtn.textContent = following ? 'Takip Ediyorum' : 'Takip Et';
+      followBtn.className = 'follow-btn profile-follow-btn' + (following ? ' following' : '');
+      followBtn.onclick = () => toggleFollowUser(u.username, followBtn);
+    }
+  }
 
   const grid = document.getElementById('po-grid');
   grid.innerHTML = '';
-  u.attended.forEach(c => {
+  (u.attended || []).forEach(c => {
     const item = document.createElement('div');
     item.className = 'cg-item';
     item.innerHTML = `<div class="cg-img" style="background-image:url('${c.img}')"></div><span class="cg-score">${c.score}</span>`;
@@ -764,6 +807,65 @@ function openProfile(username) {
 
   document.getElementById('profile-overlay').classList.add('open');
   document.getElementById('profile-overlay').scrollTop = 0;
+}
+
+// ── USER FOLLOW ──
+function toggleFollowUser(username, btn) {
+  const nowFollowing = DataService.toggleFollow(username);
+  btn.textContent = nowFollowing ? 'Takip Ediyorum' : 'Takip Et';
+  btn.classList.toggle('following', nowFollowing);
+  refreshFollowStats();
+  showToast(nowFollowing ? `${username} takip ediliyor` : `${username} takipten çıkıldı`);
+}
+
+function renderUserList(users) {
+  const list = document.getElementById('user-result-list');
+  if (!list) return;
+  if (!users.length) {
+    list.innerHTML = '<p class="user-search-hint">Kullanıcı bulunamadı</p>';
+    return;
+  }
+  list.innerHTML = users.map(u => {
+    const following = DataService.isFollowing(u.username);
+    return `
+      <div class="user-result-item" data-username="${escHtml(u.username)}">
+        <img class="user-result-avatar" src="${escHtml(u.avatar)}" alt=""
+          onerror="this.src='https://i.pravatar.cc/80?u=${encodeURIComponent(u.username)}'">
+        <div class="user-result-info">
+          <span class="user-result-name">${escHtml(u.displayName || u.username)}</span>
+          <span class="user-result-username">@${escHtml(u.username)}</span>
+        </div>
+        <button class="follow-btn${following ? ' following' : ''}" data-follow="${escHtml(u.username)}">
+          ${following ? 'Takip Ediyorum' : 'Takip Et'}
+        </button>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-follow]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleFollowUser(btn.dataset.follow, btn);
+    });
+  });
+  list.querySelectorAll('.user-result-item').forEach(item => {
+    item.addEventListener('click', () => openProfile(item.dataset.username));
+  });
+}
+
+function initUserSearch() {
+  const input = document.getElementById('user-search-input');
+  if (!input || input._userSearchBound) return;
+  input._userSearchBound = true;
+  let _timer = null;
+  input.addEventListener('input', function() {
+    clearTimeout(_timer);
+    const q = this.value.trim();
+    if (!q) {
+      document.getElementById('user-result-list').innerHTML = '<p class="user-search-hint">Aramak için kullanıcı adını yaz</p>';
+      return;
+    }
+    _timer = setTimeout(() => renderUserList(DataService.searchUsers(q)), 250);
+  });
 }
 
 function closeProfile() {
@@ -1330,11 +1432,24 @@ async function initSpotifyCallback() {
   }
 }
 
+// ── SEARCH SCREEN: chip / section toggle ──
+document.getElementById('search-genre-chips')?.addEventListener('click', function(e) {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  const isUsers = chip.dataset.section === 'users';
+  const userSection = document.getElementById('user-search-section');
+  const eventGrid   = document.getElementById('event-search-grid');
+  if (userSection) userSection.style.display = isUsers ? 'block' : 'none';
+  if (eventGrid)   eventGrid.style.display   = isUsers ? 'none'  : 'grid';
+  if (isUsers) initUserSearch();
+});
+
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   loadFeaturedConcerts();
   refreshProfileStats();
+  refreshFollowStats();
   renderMyAttended();
   renderTimeline();
   refreshProfileCommunities();
