@@ -304,6 +304,7 @@
   const SPOTIFY_TOKEN_KEY = 'reprise_spotify';
   const USER_KEY          = 'reprise_user';
   const ACCOUNTS_KEY      = 'reprise_accounts';
+  const POSTS_KEY         = 'reprise_posts';
 
   // GitHub Pages redirect URI for PKCE
   const SPOTIFY_PKCE_REDIRECT = 'https://volkanmuyan.github.io/reprise';
@@ -579,6 +580,40 @@
       const user = { username, displayName, bio, avatar };
       DataService.saveCurrentUser(user);
       return user;
+    },
+
+    updateCurrentUser(updates) {
+      const user = DataService.getCurrentUser();
+      if (!user) return null;
+      const updated = { ...user, ...updates };
+      DataService.saveCurrentUser(updated);
+      // sync back into accounts store
+      try {
+        const accounts = DataService._getAccounts();
+        const idx = accounts.findIndex(a => a.username === user.username);
+        if (idx >= 0) {
+          accounts[idx] = { ...accounts[idx], ...updates };
+          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        }
+      } catch (e) {}
+      return updated;
+    },
+
+    // ── Posts ──
+    getPosts() {
+      try { return JSON.parse(localStorage.getItem(POSTS_KEY) || '[]'); }
+      catch { return []; }
+    },
+    addPost({ imageData, caption }) {
+      const posts = DataService.getPosts();
+      const post  = { id: Date.now().toString(), imageData, caption: caption || '', date: new Date().toISOString() };
+      posts.unshift(post);
+      localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+      return post;
+    },
+    deletePost(id) {
+      const posts = DataService.getPosts().filter(p => p.id !== id);
+      localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
     },
 
     // ── Featured concerts (homepage) ──

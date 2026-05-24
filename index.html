@@ -419,6 +419,9 @@
       <header class="top-bar">
         <span class="logo">profil</span>
         <div style="display:flex;align-items:center;gap:8px">
+          <button class="icon-btn" onclick="openEditProfile()" title="Profili Düzenle">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
           <button class="icon-btn" onclick="shareProfile()" title="Profili Paylaş">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
           </button>
@@ -493,6 +496,7 @@
 
         <div class="profile-tabs">
           <button class="ptab active" onclick="switchProfileTab(this, 'tab-attended')">Katıldım</button>
+          <button class="ptab" onclick="switchProfileTab(this, 'tab-posts')">Gönderiler</button>
           <button class="ptab" onclick="switchProfileTab(this, 'tab-timeline')">Kronoloji</button>
           <button class="ptab" onclick="switchProfileTab(this, 'tab-want')">Listeme</button>
           <button class="ptab" onclick="switchProfileTab(this, 'tab-reviews')">Yorumlar</button>
@@ -506,6 +510,20 @@
             <p class="empty-title">Henüz konser eklemedin</p>
             <p class="empty-sub">Gördüğün konserleri + butonuyla ekle</p>
           </div>
+        </div>
+
+        <!-- TAB: Gönderiler -->
+        <div class="ptab-content" id="tab-posts">
+          <div id="posts-grid" class="posts-grid"></div>
+          <div id="posts-empty" class="empty-state" style="display:none">
+            <svg class="empty-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p class="empty-title">Henüz gönderi yok</p>
+            <p class="empty-sub">Konserlerdeki anlarını paylaş</p>
+          </div>
+          <button class="add-post-btn" onclick="openAddPost()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Fotoğraf Ekle
+          </button>
         </div>
 
         <!-- TAB: Timeline (kronolojik geçmiş) -->
@@ -821,6 +839,67 @@
         } catch(e){}
       })();
     </script>
+
+    <!-- ── EDIT PROFILE SHEET ── -->
+    <div id="edit-profile-sheet" class="sheet-overlay" style="display:none" onclick="if(event.target===this)closeEditProfile()">
+      <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-top-row">
+          <h3 class="sheet-title">Profili Düzenle</h3>
+          <button class="sheet-save-btn" onclick="saveEditProfile()">Kaydet</button>
+        </div>
+
+        <!-- Avatar picker -->
+        <div class="edit-avatar-section">
+          <div class="edit-avatar-wrap" onclick="document.getElementById('avatar-file-input').click()">
+            <img id="edit-avatar-preview" class="edit-avatar-img" src="" alt="">
+            <div class="edit-avatar-overlay">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarFile(this)">
+          <span class="edit-avatar-hint">Fotoğrafı değiştir</span>
+        </div>
+
+        <div class="edit-fields">
+          <div class="auth-field">
+            <label class="auth-label">Adın</label>
+            <input class="auth-input" id="edit-displayname" type="text" placeholder="Adın Soyadın">
+          </div>
+          <div class="auth-field">
+            <label class="auth-label">Bio</label>
+            <input class="auth-input" id="edit-bio" type="text" placeholder="Kendinden bahset…" maxlength="120">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ADD POST SHEET ── -->
+    <div id="add-post-sheet" class="sheet-overlay" style="display:none" onclick="if(event.target===this)closeAddPost()">
+      <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-top-row">
+          <h3 class="sheet-title">Gönderi Ekle</h3>
+          <button class="sheet-save-btn" id="post-share-btn" onclick="savePost()">Paylaş</button>
+        </div>
+
+        <div class="post-photo-area">
+          <div class="post-photo-picker" id="post-photo-picker" onclick="document.getElementById('post-file-input').click()">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Fotoğraf Seç</span>
+          </div>
+          <img id="post-photo-preview" class="post-photo-preview" style="display:none" alt="" onclick="document.getElementById('post-file-input').click()">
+          <input type="file" id="post-file-input" accept="image/*" style="display:none" onchange="handlePostFile(this)">
+        </div>
+
+        <div class="edit-fields">
+          <div class="auth-field">
+            <label class="auth-label">Açıklama</label>
+            <textarea class="auth-input post-caption" id="post-caption" placeholder="Bu an için bir şeyler yaz…" rows="3" maxlength="280"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ── SETTINGS SHEET ── -->
     <div id="settings-sheet" class="settings-sheet" style="display:none" onclick="if(event.target===this)closeSettings()">

@@ -707,6 +707,7 @@ function switchProfileTab(btn, tabId) {
 
   if (tabId === 'tab-attended') renderMyAttended();
   if (tabId === 'tab-timeline') renderTimeline();
+  if (tabId === 'tab-posts')    renderPosts();
 }
 
 // ── SWIPE TO CLOSE OVERLAYS ──
@@ -741,6 +742,141 @@ communityOverlay.addEventListener('touchstart', e => { touchStartY = e.touches[0
 communityOverlay.addEventListener('touchend', e => {
   if (e.changedTouches[0].clientY - touchStartY > 80 && communityOverlay.scrollTop === 0) closeCommunity();
 }, { passive: true });
+
+// ── IMAGE RESIZE HELPER ──
+function resizeImage(file, maxPx, quality = 0.82) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else       { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+// ── PROFILE EDIT ──
+function openEditProfile() {
+  const user = DataService.getCurrentUser();
+  if (!user) return;
+  document.getElementById('edit-displayname').value = user.displayName || '';
+  document.getElementById('edit-bio').value          = user.bio || '';
+  document.getElementById('edit-avatar-preview').src = user.avatar || '';
+  document.getElementById('edit-profile-sheet').style.display = 'flex';
+}
+
+function closeEditProfile() {
+  document.getElementById('edit-profile-sheet').style.display = 'none';
+}
+
+async function handleAvatarFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const dataURL = await resizeImage(file, 300, 0.85);
+  if (dataURL) document.getElementById('edit-avatar-preview').src = dataURL;
+}
+
+function saveEditProfile() {
+  const displayName = document.getElementById('edit-displayname').value.trim();
+  const bio         = document.getElementById('edit-bio').value.trim();
+  const avatar      = document.getElementById('edit-avatar-preview').src;
+
+  if (!displayName) { showToast('Ad boş olamaz'); return; }
+
+  const updated = DataService.updateCurrentUser({ displayName, bio, avatar });
+  if (updated) {
+    renderProfileHero(updated);
+    closeEditProfile();
+    showToast('Profil güncellendi');
+  }
+}
+
+// ── POSTS ──
+let _pendingPostImage = null;
+
+function openAddPost() {
+  _pendingPostImage = null;
+  document.getElementById('post-caption').value     = '';
+  document.getElementById('post-photo-preview').style.display = 'none';
+  document.getElementById('post-photo-picker').style.display  = 'flex';
+  document.getElementById('post-file-input').value  = '';
+  document.getElementById('add-post-sheet').style.display = 'flex';
+}
+
+function closeAddPost() {
+  document.getElementById('add-post-sheet').style.display = 'none';
+}
+
+async function handlePostFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const dataURL = await resizeImage(file, 900, 0.80);
+  if (!dataURL) return;
+  _pendingPostImage = dataURL;
+  const preview = document.getElementById('post-photo-preview');
+  preview.src = dataURL;
+  preview.style.display = 'block';
+  document.getElementById('post-photo-picker').style.display = 'none';
+}
+
+function savePost() {
+  const caption = document.getElementById('post-caption').value.trim();
+  if (!_pendingPostImage && !caption) { showToast('Fotoğraf veya açıklama ekle'); return; }
+
+  DataService.addPost({ imageData: _pendingPostImage, caption });
+  closeAddPost();
+  renderPosts();
+  showToast('Gönderi paylaşıldı!');
+}
+
+function renderPosts() {
+  const grid    = document.getElementById('posts-grid');
+  const empty   = document.getElementById('posts-empty');
+  if (!grid) return;
+  const posts = DataService.getPosts();
+
+  if (posts.length === 0) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  grid.innerHTML = posts.map(p => `
+    <div class="post-card">
+      ${p.imageData ? `<div class="post-img" style="background-image:url('${p.imageData}')"></div>` : ''}
+      ${p.caption   ? `<p class="post-caption-text">${p.caption}</p>` : ''}
+      <div class="post-meta">
+        <span class="post-date">${formatPostDate(p.date)}</span>
+        <button class="post-delete" onclick="deletePost('${p.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function deletePost(id) {
+  DataService.deletePost(id);
+  renderPosts();
+}
+
+function formatPostDate(iso) {
+  try {
+    const d = new Date(iso);
+    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch { return ''; }
+}
 
 // ── FEATURED CONCERTS (homepage) ──
 async function loadFeaturedConcerts() {
