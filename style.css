@@ -189,15 +189,34 @@ body {
 .feed-section { padding: 0 20px 24px; }
 .section-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
   margin-bottom: 14px;
 }
 .section-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.section-sub { font-size: 11px; color: var(--muted); }
 .see-all {
   background: none; border: none;
   color: var(--accent); font-size: 12px; font-weight: 600;
   cursor: pointer;
+  align-self: flex-end;
+  margin-top: -22px;
+}
+
+/* ── Card skeleton ── */
+.card-skeleton {
+  flex-shrink: 0;
+  width: 160px;
+  height: 200px;
+  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 14px;
+}
+@keyframes shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 /* ── ACTIVITY FEED ── */
@@ -1663,6 +1682,14 @@ body {
   z-index: 450;
   display: flex;
   align-items: flex-end;
+  /* hidden by default via opacity; display stays flex so iOS renders & measures it */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.sheet-overlay.open {
+  opacity: 1;
+  pointer-events: all;
 }
 
 .bottom-sheet {
@@ -1672,6 +1699,12 @@ body {
   max-height: 90%;
   overflow-y: auto;
   padding-bottom: 32px;
+  /* translate up when open so the sheet slides in */
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+}
+.sheet-overlay.open .bottom-sheet {
+  transform: translateY(0);
 }
 
 .sheet-top-row {
@@ -2010,6 +2043,13 @@ body {
   z-index: 450;
   display: flex;
   align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.settings-sheet.open {
+  opacity: 1;
+  pointer-events: all;
 }
 
 .settings-body {
@@ -2017,6 +2057,11 @@ body {
   border-radius: 20px 20px 0 0;
   width: 100%;
   padding: 0 0 32px;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+}
+.settings-sheet.open .settings-body {
+  transform: translateY(0);
 }
 
 .settings-handle {

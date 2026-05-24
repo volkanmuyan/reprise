@@ -775,11 +775,11 @@ function openEditProfile() {
   document.getElementById('edit-bio').value          = user.bio || '';
   const avatarEl = document.getElementById('edit-avatar-preview');
   if (avatarEl) avatarEl.src = user.avatar || '';
-  document.getElementById('edit-profile-sheet').style.display = 'flex';
+  document.getElementById('edit-profile-sheet').classList.add('open');
 }
 
 function closeEditProfile() {
-  document.getElementById('edit-profile-sheet').style.display = 'none';
+  document.getElementById('edit-profile-sheet').classList.remove('open');
 }
 
 async function handleAvatarFile(input) {
@@ -817,11 +817,11 @@ function openAddPost() {
   document.getElementById('post-photo-preview').style.display = 'none';
   document.getElementById('post-photo-picker').style.display  = 'flex';
   document.getElementById('post-file-input').value  = '';
-  document.getElementById('add-post-sheet').style.display = 'flex';
+  document.getElementById('add-post-sheet').classList.add('open');
 }
 
 function closeAddPost() {
-  document.getElementById('add-post-sheet').style.display = 'none';
+  document.getElementById('add-post-sheet').classList.remove('open');
 }
 
 async function handlePostFile(input) {
@@ -887,23 +887,28 @@ function formatPostDate(iso) {
 
 // ── FEATURED CONCERTS (homepage) ──
 async function loadFeaturedConcerts() {
-  const cardRow = document.getElementById('upcoming-card-row');
-  if (!cardRow) return;
+  // Load both city sections in parallel
+  loadCitySection('ankara-card-row', () => DataService.getAnkaraConcerts(), 6);
+  loadCitySection('istanbul-card-row', () => DataService.getIstanbulConcerts(), 6, true);
+}
 
+async function loadCitySection(rowId, fetcher, limit, updateHero = false) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
   try {
-    const events = await DataService.getFeaturedConcerts({ size: 12 });
-    if (!events || events.length === 0) return;
-
-    // Hero: best image first
-    const hero = events.find(e => e.image) || events[0];
-    if (hero) updateHeroCard(hero);
-
-    // Card row: next 6 after hero
-    const rest = events.filter(e => e.id !== hero.id).slice(0, 6);
-    if (rest.length > 0) {
-      cardRow.innerHTML = rest.map(renderLiveEventCard).join('');
+    const events = await fetcher();
+    if (!events || events.length === 0) {
+      row.innerHTML = '<p style="color:#555;font-size:12px;padding:8px 0">Yakın tarihte etkinlik bulunamadı</p>';
+      return;
     }
-  } catch (_) {}
+    if (updateHero) {
+      const hero = events.find(e => e.image) || events[0];
+      if (hero) updateHeroCard(hero);
+    }
+    row.innerHTML = events.slice(0, limit).map(renderLiveEventCard).join('');
+  } catch (_) {
+    row.innerHTML = '';
+  }
 }
 
 function updateHeroCard(ev) {
@@ -1029,11 +1034,11 @@ function openSettings() {
   el('settings-avatar').src      = user.avatar || '';
   el('settings-username').textContent   = user.displayName || user.username;
   el('settings-bio-preview').textContent = user.bio || '@' + user.username;
-  el('settings-sheet').style.display = 'flex';
+  el('settings-sheet').classList.add('open');
 }
 
 function closeSettings() {
-  document.getElementById('settings-sheet').style.display = 'none';
+  document.getElementById('settings-sheet').classList.remove('open');
 }
 
 function confirmLogout() {

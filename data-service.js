@@ -626,6 +626,22 @@
       } catch { return []; }
     },
 
+    async getAnkaraConcerts() {
+      try {
+        const res = await fetch(DataService.apiBase + '/concerts/ankara');
+        if (!res.ok) return [];
+        return await res.json();
+      } catch { return []; }
+    },
+
+    async getIstanbulConcerts() {
+      try {
+        const res = await fetch(DataService.apiBase + '/concerts/istanbul');
+        if (!res.ok) return [];
+        return await res.json();
+      } catch { return []; }
+    },
+
     // ── Concert search (Ticketmaster via backend) ──
     async searchConcerts({ artist, country = 'TR', size = 10 } = {}) {
       try {
