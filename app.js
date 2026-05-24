@@ -796,13 +796,12 @@ function handleSignup(e) {
 }
 
 function renderProfileHero(user) {
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el[id === 'profile-my-avatar' ? 'src' : 'textContent'] = val; };
-  set('profile-my-avatar',    user.avatar || ('https://i.pravatar.cc/80?u=' + encodeURIComponent(user.username)));
-  document.getElementById('profile-my-avatar').src = user.avatar || ('https://i.pravatar.cc/80?u=' + encodeURIComponent(user.username));
-  const nameEl = document.getElementById('profile-my-name');
-  if (nameEl) nameEl.textContent = user.displayName || user.username;
-  const bioEl = document.getElementById('profile-my-bio');
-  if (bioEl) bioEl.textContent = user.bio || '';
+  const avatarEl = document.getElementById('profile-my-avatar');
+  const nameEl   = document.getElementById('profile-my-name');
+  const bioEl    = document.getElementById('profile-my-bio');
+  if (avatarEl) avatarEl.src = user.avatar || ('https://i.pravatar.cc/80?u=' + encodeURIComponent(user.username));
+  if (nameEl)   nameEl.textContent = user.displayName || user.username;
+  if (bioEl)    bioEl.textContent  = user.bio || '';
 }
 
 function openSettings() {

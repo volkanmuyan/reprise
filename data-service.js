@@ -564,9 +564,12 @@
       username = (username || '').trim();
       displayName = (displayName || '').trim();
       bio = (bio || '').trim();
-      if (!username || !displayName || !password) throw new Error('Tüm zorunlu alanları doldur');
-      if (!/^[a-zA-Z0-9._]{3,20}$/.test(username)) throw new Error('Kullanıcı adı 3–20 karakter, harf/rakam/nokta');
-      if (password.length < 6) throw new Error('Şifre en az 6 karakter olmalı');
+      if (!username)    throw new Error('Kullanıcı adı gerekli');
+      if (!displayName) throw new Error('Adın gerekli');
+      if (!password)    throw new Error('Şifre gerekli');
+      if (/\s/.test(username)) throw new Error('Kullanıcı adında boşluk olamaz');
+      if (username.length < 3) throw new Error('Kullanıcı adı en az 3 karakter olmalı');
+      if (password.length < 4) throw new Error('Şifre en az 4 karakter olmalı');
       const accounts = DataService._getAccounts();
       if (accounts.find(a => a.username.toLowerCase() === username.toLowerCase())) throw new Error('Bu kullanıcı adı alınmış');
       const avatar  = 'https://i.pravatar.cc/80?u=' + encodeURIComponent(username);
