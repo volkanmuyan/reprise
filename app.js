@@ -134,7 +134,10 @@ function renderTimeline() {
           <div class="tl-body">
             <p class="tl-artist">${escapeHtml(c.artist)}</p>
             ${[c.venue, c.city].filter(Boolean).length ? `<p class="tl-venue-city">${escapeHtml([c.venue, c.city].filter(Boolean).join(' · '))}</p>` : ''}
-            ${c.rating ? `<span class="tl-score">${c.rating}</span>` : ''}
+            <div class="tl-meta-row">
+              ${c.rating ? `<span class="tl-score">${c.rating}</span>` : ''}
+              ${c.songs?.length ? `<span class="tl-song-count">${c.songs.length} şarkı</span>` : ''}
+            </div>
             ${c.notes ? `<p class="tl-notes">"${escapeHtml(c.notes)}"</p>` : ''}
           </div>
         </div>
@@ -210,10 +213,12 @@ function deleteConcert(id) {
 }
 
 // ── ADD CONCERT FORM ──
-// ── Year dropdown helper ──
-function populateYearDropdown() {
+let _selectedSetlist = null;
+let _slResults       = [];   // store search results by index to avoid inline JSON
+
+function _yearOptions() {
   const sel = document.getElementById('sl-year-input');
-  if (!sel || sel.options.length > 1) return;
+  if (!sel || sel.options.length > 2) return;
   const now = new Date().getFullYear();
   for (let y = now; y >= 1960; y--) {
     const opt = document.createElement('option');
@@ -222,26 +227,30 @@ function populateYearDropdown() {
   }
 }
 
-let _selectedSetlist = null;
+function _showStep(step) {
+  // step: 'search' | 'results' | 'form'
+  const searchBox = document.getElementById('sl-search-box');
+  const resultsBox = document.getElementById('sl-results-box');
+  const form = document.getElementById('add-concert-form');
+  if (searchBox)  searchBox.style.display  = step === 'form'    ? 'none' : 'block';
+  if (resultsBox) resultsBox.style.display = step === 'results' ? 'block' : 'none';
+  if (form)       form.style.display       = step === 'form'    ? 'block' : 'none';
+}
 
 function openAddConcert() {
   fcRating = null;
   _selectedSetlist = null;
-  const fields = ['fc-artist','fc-venue','fc-city','fc-notes','sl-artist-input','sl-city-input'];
-  fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _slResults = [];
+  ['fc-artist','fc-venue','fc-city','fc-notes','sl-artist-input','sl-city-input']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const dateEl = document.getElementById('fc-date');
   if (dateEl) dateEl.value = '';
   const charEl = document.getElementById('fc-char-count');
   if (charEl) charEl.textContent = '0/280';
   const noteEl = document.getElementById('fc-rating-note');
   if (noteEl) noteEl.textContent = 'Puanlamak için dokunun';
-  const results = document.getElementById('sl-results');
-  if (results) { results.innerHTML = ''; results.style.display = 'none'; }
-  const form = document.getElementById('add-concert-form');
-  if (form) form.style.display = 'none';
-  const banner = document.getElementById('sl-selected-banner');
-  if (banner) banner.style.display = 'none';
-  populateYearDropdown();
+  _yearOptions();
+  _showStep('search');
   initFCRating();
   document.getElementById('add-concert-overlay').classList.add('open');
 }
@@ -249,37 +258,50 @@ function openAddConcert() {
 async function doSetlistSearch() {
   const artist = (document.getElementById('sl-artist-input')?.value || '').trim();
   if (!artist) { showToast('Sanatçı adı gir'); return; }
-  const city   = (document.getElementById('sl-city-input')?.value  || '').trim();
-  const year   = document.getElementById('sl-year-input')?.value   || '';
+  const city = (document.getElementById('sl-city-input')?.value || '').trim();
+  const year = document.getElementById('sl-year-input')?.value || '';
 
-  const btn     = document.querySelector('.sl-search-btn');
-  const results = document.getElementById('sl-results');
-  if (btn) { btn.disabled = true; btn.textContent = 'Aranıyor…'; }
-  if (results) { results.style.display = 'block'; results.innerHTML = '<p class="sl-loading">Setlist.fm\'de aranıyor…</p>'; }
+  const btn = document.getElementById('sl-search-btn');
+  const list = document.getElementById('sl-result-list');
+  if (btn)  { btn.disabled = true; btn.textContent = 'Aranıyor…'; }
+  if (list) list.innerHTML = '<p class="sl-loading">Setlist.fm\'de aranıyor…</p>';
+  _showStep('results');
 
-  const data = await DataService.searchSetlists({ artist, city, year });
+  _slResults = await DataService.searchSetlists({ artist, city, year });
 
   if (btn) {
     btn.disabled = false;
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Konser Ara`;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Ara';
   }
 
-  if (!data || data.length === 0) {
-    if (results) results.innerHTML = '<p class="sl-empty">Sonuç bulunamadı — şehir veya yılı değiştir, ya da manuel gir.</p>';
+  if (!list) return;
+
+  if (!_slResults.length) {
+    list.innerHTML = `
+      <p class="sl-empty">Sonuç bulunamadı.</p>
+      <button class="sl-manual-btn" onclick="openManualEntry()">Manuel olarak gir →</button>`;
     return;
   }
 
-  if (results) results.innerHTML = data.map(s => `
-    <div class="sl-result-item" onclick="selectSetlist(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+  list.innerHTML = _slResults.map((s, i) => `
+    <div class="sl-result-item" onclick="selectSetlistByIndex(${i})">
       <div class="sl-result-main">
-        <span class="sl-result-artist">${s.artist}</span>
-        <span class="sl-result-venue">${s.venue}${s.city ? ' · ' + s.city : ''}</span>
+        <span class="sl-result-artist">${escHtml(s.artist)}</span>
+        <span class="sl-result-venue">${escHtml(s.venue)}${s.city ? ' · ' + escHtml(s.city) : ''}</span>
       </div>
       <div class="sl-result-right">
         <span class="sl-result-date">${formatSetlistDate(s.date)}</span>
         ${s.songs.length ? `<span class="sl-result-songs">${s.songs.length} şarkı</span>` : ''}
       </div>
-    </div>`).join('');
+    </div>`).join('') +
+    `<div class="sl-result-item sl-manual-row" onclick="openManualEntry()">
+      <span style="color:var(--muted);font-size:13px">Aradığım konser listede yok — manuel gir</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>`;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function formatSetlistDate(iso) {
@@ -289,44 +311,41 @@ function formatSetlistDate(iso) {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function selectSetlist(s) {
+function selectSetlistByIndex(i) {
+  const s = _slResults[i];
+  if (!s) return;
   _selectedSetlist = s;
-
   document.getElementById('fc-artist').value = s.artist;
   document.getElementById('fc-venue').value  = s.venue;
   document.getElementById('fc-city').value   = s.city;
   document.getElementById('fc-date').value   = s.date;
-
-  const banner = document.getElementById('sl-selected-banner');
-  const label  = document.getElementById('sl-selected-label');
-  if (banner) banner.style.display = 'flex';
-  if (label)  label.textContent = `${s.artist} · ${formatSetlistDate(s.date)}${s.songs.length ? ' · ' + s.songs.length + ' şarkı' : ''}`;
-
-  const results = document.getElementById('sl-results');
-  if (results) { results.style.display = 'none'; results.innerHTML = ''; }
-
-  const form = document.getElementById('add-concert-form');
-  if (form) form.style.display = 'block';
-
+  const label = document.getElementById('sl-selected-label');
+  if (label) label.textContent =
+    `${s.artist} · ${formatSetlistDate(s.date)}${s.songs.length ? ' · ' + s.songs.length + ' şarkı' : ''}`;
+  document.getElementById('sl-selected-banner').style.display = 'flex';
+  _showStep('form');
   initFCRating();
+  document.getElementById('add-concert-sheet')?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function clearSetlistSelection() {
+function openManualEntry() {
   _selectedSetlist = null;
   document.getElementById('sl-selected-banner').style.display = 'none';
   ['fc-artist','fc-venue','fc-city','fc-date'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  _showStep('form');
+  initFCRating();
 }
 
-function toggleManualEntry() {
-  const form = document.getElementById('add-concert-form');
-  if (!form) return;
-  const showing = form.style.display !== 'none';
-  form.style.display = showing ? 'none' : 'block';
-  const btn = document.getElementById('sl-manual-btn');
-  if (btn) btn.textContent = showing ? 'Veritabanında yok — manuel gir' : '← Aramaya dön';
-  if (!showing) initFCRating();
+function backToSearch() {
+  _selectedSetlist = null;
+  _showStep('search');
+}
+
+function backToResults() {
+  if (_slResults.length) _showStep('results');
+  else _showStep('search');
 }
 
 function closeAddConcert() {

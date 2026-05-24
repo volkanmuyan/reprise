@@ -701,36 +701,52 @@
       <div class="bottom-sheet" id="add-concert-sheet">
         <div class="sheet-handle"></div>
         <div class="sheet-header">
-          <h2 class="sheet-title">Konser Ekle</h2>
+          <h2 class="sheet-title" id="ac-header-title">Konser Ekle</h2>
           <button class="sheet-close" onclick="closeAddConcert()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
 
-        <!-- ── Setlist.fm search ── -->
-        <div class="sl-search-box">
-          <div class="sl-search-row">
-            <input type="text" id="sl-artist-input" class="form-input" placeholder="Sanatçı adı" autocapitalize="none" />
-            <input type="text" id="sl-city-input" class="form-input" placeholder="Şehir" style="width:100px;flex-shrink:0" />
-            <select id="sl-year-input" class="form-input" style="width:84px;flex-shrink:0"></select>
+        <!-- STEP 1: Search -->
+        <div id="sl-search-box" style="padding:0 16px 16px">
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <input type="text" id="sl-artist-input" class="form-input" placeholder="Sanatçı adı" autocapitalize="none" style="flex:1" />
+            <input type="text" id="sl-city-input" class="form-input" placeholder="Şehir" style="width:90px;flex-shrink:0" />
+            <select id="sl-year-input" class="form-input" style="width:80px;flex-shrink:0">
+              <option value="">Yıl</option>
+            </select>
           </div>
-          <button type="button" class="sl-search-btn" onclick="doSetlistSearch()">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            Konser Ara
+          <button type="button" id="sl-search-btn" class="sl-search-btn" onclick="doSetlistSearch()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Ara
           </button>
-          <div id="sl-results" class="sl-results" style="display:none"></div>
-          <button type="button" class="sl-manual-toggle" id="sl-manual-btn" onclick="toggleManualEntry()">
-            Veritabanında yok — manuel gir
-          </button>
+          <div style="margin-top:10px;text-align:center">
+            <button type="button" class="sl-manual-toggle" onclick="openManualEntry()">Veritabanında yok — manuel gir →</button>
+          </div>
         </div>
 
-        <!-- ── Manual entry form (hidden until search or manual toggle) ── -->
-        <form id="add-concert-form" onsubmit="saveNewConcert(event)" class="sl-manual-form" style="display:none">
-          <div class="sl-selected-banner" id="sl-selected-banner" style="display:none">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            <span id="sl-selected-label">Setlist.fm'den seçildi</span>
-            <button type="button" onclick="clearSetlistSelection()" class="sl-clear-btn">×</button>
+        <!-- STEP 2: Results -->
+        <div id="sl-results-box" style="display:none">
+          <div style="padding:0 16px 8px;display:flex;align-items:center;gap:8px">
+            <button type="button" class="sl-back-btn" onclick="backToSearch()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span style="font-size:13px;font-weight:600;color:var(--muted)">Konser seç</span>
           </div>
+          <div id="sl-result-list" class="sl-result-list"></div>
+        </div>
+
+        <!-- STEP 3: Form (fill in after selection or manual) -->
+        <form id="add-concert-form" onsubmit="saveNewConcert(event)" style="display:none;padding:0 16px 16px">
+          <div class="sl-selected-banner" id="sl-selected-banner" style="display:none;margin-bottom:12px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="sl-selected-label"></span>
+            <button type="button" onclick="backToResults()" class="sl-clear-btn">×</button>
+          </div>
+          <button type="button" class="sl-back-btn" style="margin-bottom:14px" onclick="backToResults()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            <span style="font-size:12px;color:var(--muted)">Geri</span>
+          </button>
           <div class="form-group">
             <label class="form-label">Sanatçı / Grup <span class="form-required">*</span></label>
             <input type="text" id="fc-artist" class="form-input" placeholder="ör. Radiohead" required />
