@@ -11,13 +11,22 @@ const TM_BASE = 'https://app.ticketmaster.com/discovery/v2';
 const TM_KEY  = () => process.env.TICKETMASTER_API_KEY;
 
 // ── Featured concerts (homepage) ─────────────
-// GET /api/concerts/featured?country=TR&size=12
+// GET /api/concerts/featured?country=TR
 router.get('/featured', async (req, res) => {
   if (!TM_KEY()) return res.json([]);
 
-  const { country = 'TR', size = 12 } = req.query;
-  const cacheKey = `featured:${country}`;
-  const cached = cache.get(cacheKey);
+  const { country = 'TR' } = req.query;
+
+  const now = new Date();
+  const twoMonths = new Date(now);
+  twoMonths.setMonth(twoMonths.getMonth() + 2);
+
+  const fmt = d => d.toISOString().slice(0, 19) + 'Z';
+
+  // Cache key includes date so it refreshes daily
+  const dayKey    = now.toISOString().slice(0, 10);
+  const cacheKey  = `featured:${country}:${dayKey}`;
+  const cached    = cache.get(cacheKey);
   if (cached) return res.json(cached);
 
   try {
@@ -26,27 +35,36 @@ router.get('/featured', async (req, res) => {
         apikey:             TM_KEY(),
         countryCode:        country,
         classificationName: 'Music',
-        size:               Number(size),
-        sort:               'relevance,desc',
+        size:               50,
+        sort:               'date,asc',
+        startDateTime:      fmt(now),
+        endDateTime:        fmt(twoMonths),
       },
     });
 
-    const events = (data._embedded?.events || []).map(ev => ({
-      id:       ev.id,
-      name:     ev.name,
-      date:     ev.dates?.start?.localDate,
-      time:     ev.dates?.start?.localTime,
-      venue:    ev._embedded?.venues?.[0]?.name,
-      city:     ev._embedded?.venues?.[0]?.city?.name,
-      url:      ev.url,
-      image:    ev.images?.find(i => i.ratio === '16_9' && i.width >= 1024)?.url
-             || ev.images?.find(i => i.ratio === '16_9')?.url
-             || ev.images?.[0]?.url,
-      priceMin: ev.priceRanges?.[0]?.min,
-      currency: ev.priceRanges?.[0]?.currency || 'TRY',
-    }));
+    const seen   = new Set();
+    const events = (data._embedded?.events || [])
+      .filter(ev => {
+        // deduplicate by artist name so same act doesn't repeat
+        const key = ev.name.toLowerCase().split(/[^a-zçğışöü]/)[0].trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map(ev => ({
+        id:       ev.id,
+        name:     ev.name,
+        date:     ev.dates?.start?.localDate,
+        venue:    ev._embedded?.venues?.[0]?.name,
+        city:     ev._embedded?.venues?.[0]?.city?.name,
+        url:      ev.url,
+        image:    ev.images?.find(i => i.ratio === '16_9' && i.width >= 1024)?.url
+               || ev.images?.find(i => i.ratio === '16_9')?.url
+               || ev.images?.[0]?.url,
+        priceMin: ev.priceRanges?.[0]?.min,
+      }));
 
-    cache.set(cacheKey, events);
+    cache.set(cacheKey, events, 10800); // 3-hour cache
     res.json(events);
   } catch (err) {
     const status = err.response?.status || 500;
