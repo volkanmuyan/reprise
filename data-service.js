@@ -302,6 +302,8 @@
   const HISTORY_KEY       = 'reprise_history';
   const COMMUNITY_KEY     = 'reprise_communities';
   const SPOTIFY_TOKEN_KEY = 'reprise_spotify';
+  const USER_KEY          = 'reprise_user';
+  const ACCOUNTS_KEY      = 'reprise_accounts';
 
   // GitHub Pages redirect URI for PKCE
   const SPOTIFY_PKCE_REDIRECT = 'https://volkanmuyan.github.io/reprise/';
@@ -524,6 +526,56 @@
         if (!res.ok) return [];
         return await res.json();
       } catch { return []; }
+    },
+
+    // ══════════════════════════════════════
+    // AUTH — client-side localStorage accounts
+    // ══════════════════════════════════════
+
+    getCurrentUser() {
+      try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }
+      catch { return null; }
+    },
+
+    saveCurrentUser(user) {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    },
+
+    logout() {
+      localStorage.removeItem(USER_KEY);
+    },
+
+    _getAccounts() {
+      try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]'); }
+      catch { return []; }
+    },
+
+    login(username, password) {
+      const accounts = DataService._getAccounts();
+      const account  = accounts.find(a => a.username.toLowerCase() === username.toLowerCase().trim());
+      if (!account)               throw new Error('Kullanıcı bulunamadı');
+      if (account.password !== password) throw new Error('Şifre hatalı');
+      const user = { username: account.username, displayName: account.displayName, bio: account.bio, avatar: account.avatar };
+      DataService.saveCurrentUser(user);
+      return user;
+    },
+
+    signup({ username, displayName, bio, password }) {
+      username = (username || '').trim();
+      displayName = (displayName || '').trim();
+      bio = (bio || '').trim();
+      if (!username || !displayName || !password) throw new Error('Tüm zorunlu alanları doldur');
+      if (!/^[a-zA-Z0-9._]{3,20}$/.test(username)) throw new Error('Kullanıcı adı 3–20 karakter, harf/rakam/nokta');
+      if (password.length < 6) throw new Error('Şifre en az 6 karakter olmalı');
+      const accounts = DataService._getAccounts();
+      if (accounts.find(a => a.username.toLowerCase() === username.toLowerCase())) throw new Error('Bu kullanıcı adı alınmış');
+      const avatar  = 'https://i.pravatar.cc/80?u=' + encodeURIComponent(username);
+      const account = { username, displayName, bio, password, avatar };
+      accounts.push(account);
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+      const user = { username, displayName, bio, avatar };
+      DataService.saveCurrentUser(user);
+      return user;
     },
 
     // ── Concert search (Ticketmaster via backend) ──

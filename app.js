@@ -742,6 +742,96 @@ communityOverlay.addEventListener('touchend', e => {
   if (e.changedTouches[0].clientY - touchStartY > 80 && communityOverlay.scrollTop === 0) closeCommunity();
 }, { passive: true });
 
+// ── AUTH ──
+function initAuth() {
+  const user = DataService.getCurrentUser();
+  if (!user) {
+    document.getElementById('auth-overlay').style.display = 'flex';
+  } else {
+    document.getElementById('auth-overlay').style.display = 'none';
+    renderProfileHero(user);
+  }
+}
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('auth-tab-login').classList.toggle('active', isLogin);
+  document.getElementById('auth-tab-signup').classList.toggle('active', !isLogin);
+  document.getElementById('auth-login-form').style.display  = isLogin ? 'flex' : 'none';
+  document.getElementById('auth-signup-form').style.display = isLogin ? 'none'  : 'flex';
+  document.getElementById('login-error').textContent  = '';
+  document.getElementById('signup-error').textContent = '';
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  try {
+    const user = DataService.login(username, password);
+    document.getElementById('auth-overlay').style.display = 'none';
+    renderProfileHero(user);
+    showToast('Hoş geldin, ' + (user.displayName || user.username) + '!');
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+}
+
+function handleSignup(e) {
+  e.preventDefault();
+  const username    = document.getElementById('signup-username').value;
+  const displayName = document.getElementById('signup-displayname').value;
+  const bio         = document.getElementById('signup-bio').value;
+  const password    = document.getElementById('signup-password').value;
+  const errEl = document.getElementById('signup-error');
+  try {
+    const user = DataService.signup({ username, displayName, bio, password });
+    document.getElementById('auth-overlay').style.display = 'none';
+    renderProfileHero(user);
+    showToast('Hesap oluşturuldu, hoş geldin ' + (user.displayName || user.username) + '!');
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+}
+
+function renderProfileHero(user) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el[id === 'profile-my-avatar' ? 'src' : 'textContent'] = val; };
+  set('profile-my-avatar',    user.avatar || ('https://i.pravatar.cc/80?u=' + encodeURIComponent(user.username)));
+  document.getElementById('profile-my-avatar').src = user.avatar || ('https://i.pravatar.cc/80?u=' + encodeURIComponent(user.username));
+  const nameEl = document.getElementById('profile-my-name');
+  if (nameEl) nameEl.textContent = user.displayName || user.username;
+  const bioEl = document.getElementById('profile-my-bio');
+  if (bioEl) bioEl.textContent = user.bio || '';
+}
+
+function openSettings() {
+  const user = DataService.getCurrentUser();
+  if (!user) return;
+  const el = id => document.getElementById(id);
+  el('settings-avatar').src      = user.avatar || '';
+  el('settings-username').textContent   = user.displayName || user.username;
+  el('settings-bio-preview').textContent = user.bio || '@' + user.username;
+  el('settings-sheet').style.display = 'flex';
+}
+
+function closeSettings() {
+  document.getElementById('settings-sheet').style.display = 'none';
+}
+
+function confirmLogout() {
+  closeSettings();
+  DataService.spotifyDisconnect();
+  DataService.logout();
+  refreshSpotifyUI();
+  document.getElementById('personal-feed-content').innerHTML = '';
+  document.getElementById('auth-overlay').style.display = 'flex';
+  navigate('screen-home');
+  document.getElementById('profile-my-name').textContent = '—';
+  document.getElementById('profile-my-bio').textContent  = '';
+  document.getElementById('profile-my-avatar').src = 'https://i.pravatar.cc/80?img=15';
+}
+
 // ── ACTIVITY TABS ──
 function switchActivityTab(btn, panelId) {
   document.querySelectorAll('#screen-activity .tab').forEach(t => t.classList.remove('active'));
@@ -877,6 +967,7 @@ async function initSpotifyCallback() {
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
+  initAuth();
   refreshProfileStats();
   renderMyAttended();
   renderTimeline();

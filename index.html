@@ -422,20 +422,20 @@
           <button class="icon-btn" onclick="shareProfile()" title="Profili Paylaş">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
           </button>
-          <button class="icon-btn" title="Ayarlar">
+          <button class="icon-btn" onclick="openSettings()" title="Ayarlar">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
         </div>
       </header>
       <div class="scroll-area">
         <div class="profile-hero">
-          <img class="profile-avatar" src="https://i.pravatar.cc/80?img=15" alt="">
+          <img class="profile-avatar" id="profile-my-avatar" src="https://i.pravatar.cc/80?img=15" alt="">
           <div class="profile-info">
-            <h2 class="profile-name">volkan.m</h2>
-            <p class="profile-bio">Müzik benim dilim. Konser benim evim.</p>
+            <h2 class="profile-name" id="profile-my-name">—</h2>
+            <p class="profile-bio" id="profile-my-bio"></p>
             <div class="profile-follow-row">
-              <span><strong>128</strong> takip</span>
-              <span><strong>94</strong> takipçi</span>
+              <span><strong id="profile-my-following">0</strong> takip</span>
+              <span><strong id="profile-my-followers">0</strong> takipçi</span>
             </div>
           </div>
         </div>
@@ -761,6 +761,83 @@
         <button class="fc-delete-btn" id="mdo-delete">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           Sil
+        </button>
+      </div>
+    </div>
+
+    <!-- ── AUTH OVERLAY ── -->
+    <div id="auth-overlay" class="auth-overlay">
+      <div class="auth-logo-wrap">
+        <span class="logo" style="font-size:28px">reprise</span>
+        <p class="tagline" style="font-size:11px;margin-top:4px">gittiğin her konser, tekrar tekrar yaşanan bir nakarat.</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Giriş Yap</button>
+        <button class="auth-tab" id="auth-tab-signup" onclick="switchAuthTab('signup')">Kayıt Ol</button>
+      </div>
+
+      <!-- Login form -->
+      <form id="auth-login-form" class="auth-form" onsubmit="handleLogin(event)">
+        <div class="auth-field">
+          <label class="auth-label">Kullanıcı Adı</label>
+          <input class="auth-input" id="login-username" type="text" placeholder="kullanici.adi" autocomplete="username" autocapitalize="none">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Şifre</label>
+          <input class="auth-input" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <p class="auth-error" id="login-error"></p>
+        <button class="auth-submit" type="submit">Giriş Yap</button>
+      </form>
+
+      <!-- Signup form -->
+      <form id="auth-signup-form" class="auth-form" style="display:none" onsubmit="handleSignup(event)">
+        <div class="auth-field">
+          <label class="auth-label">Kullanıcı Adı <span class="auth-hint">harf · rakam · nokta, 3–20 karakter</span></label>
+          <input class="auth-input" id="signup-username" type="text" placeholder="kullanici.adi" autocomplete="username" autocapitalize="none">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Adın</label>
+          <input class="auth-input" id="signup-displayname" type="text" placeholder="Adın Soyadın">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Bio <span class="auth-hint">isteğe bağlı</span></label>
+          <input class="auth-input" id="signup-bio" type="text" placeholder="Müzik sever, konser tutkunu…">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Şifre <span class="auth-hint">en az 6 karakter</span></label>
+          <input class="auth-input" id="signup-password" type="password" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <p class="auth-error" id="signup-error"></p>
+        <button class="auth-submit" type="submit">Hesap Oluştur</button>
+      </form>
+    </div>
+    <script>
+      (function(){
+        try {
+          var u = JSON.parse(localStorage.getItem('reprise_user'));
+          if (u && u.username) document.getElementById('auth-overlay').style.display = 'none';
+        } catch(e){}
+      })();
+    </script>
+
+    <!-- ── SETTINGS SHEET ── -->
+    <div id="settings-sheet" class="settings-sheet" style="display:none" onclick="if(event.target===this)closeSettings()">
+      <div class="settings-body">
+        <div class="settings-handle"></div>
+        <h3 class="settings-title">Ayarlar</h3>
+        <div id="settings-user-info" class="settings-user-row">
+          <img id="settings-avatar" class="settings-avatar" src="" alt="">
+          <div>
+            <p id="settings-username" class="settings-uname"></p>
+            <p id="settings-bio-preview" class="settings-ubio"></p>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <button class="settings-item danger" onclick="confirmLogout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Çıkış Yap
         </button>
       </div>
     </div>
