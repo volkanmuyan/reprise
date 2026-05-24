@@ -581,6 +581,16 @@
       return user;
     },
 
+    // ── Featured concerts (homepage) ──
+    async getFeaturedConcerts({ country = 'TR', size = 12 } = {}) {
+      try {
+        const params = new URLSearchParams({ country, size });
+        const res = await fetch(DataService.apiBase + '/concerts/featured?' + params);
+        if (!res.ok) return [];
+        return await res.json();
+      } catch { return []; }
+    },
+
     // ── Concert search (Ticketmaster via backend) ──
     async searchConcerts({ artist, country = 'TR', size = 10 } = {}) {
       try {

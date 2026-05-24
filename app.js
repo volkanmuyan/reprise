@@ -742,6 +742,81 @@ communityOverlay.addEventListener('touchend', e => {
   if (e.changedTouches[0].clientY - touchStartY > 80 && communityOverlay.scrollTop === 0) closeCommunity();
 }, { passive: true });
 
+// ── FEATURED CONCERTS (homepage) ──
+async function loadFeaturedConcerts() {
+  const cardRow = document.getElementById('upcoming-card-row');
+  if (!cardRow) return;
+
+  try {
+    const events = await DataService.getFeaturedConcerts({ size: 12 });
+    if (!events || events.length === 0) return;
+
+    // Hero: best image first
+    const hero = events.find(e => e.image) || events[0];
+    if (hero) updateHeroCard(hero);
+
+    // Card row: next 6 after hero
+    const rest = events.filter(e => e.id !== hero.id).slice(0, 6);
+    if (rest.length > 0) {
+      cardRow.innerHTML = rest.map(renderLiveEventCard).join('');
+    }
+  } catch (_) {}
+}
+
+function updateHeroCard(ev) {
+  const $ = id => document.getElementById(id);
+  if (!$('home-hero-card')) return;
+
+  if (ev.image) $('hero-img').style.backgroundImage = `url('${ev.image}')`;
+  $('hero-title').textContent = ev.name;
+  $('hero-tag').textContent   = 'Ticketmaster · Öne Çıkan';
+
+  const parts = [];
+  if (ev.venue) parts.push(ev.venue);
+  if (ev.city)  parts.push(ev.city);
+  if (ev.date)  parts.push(formatDay(ev.date) + ' ' + formatMonth(ev.date));
+  $('hero-sub').textContent = parts.join(' · ');
+
+  if (ev.priceMin) {
+    $('hero-badge').textContent = '₺' + Math.round(ev.priceMin);
+  } else {
+    $('hero-badge').textContent = 'Bilet';
+  }
+  $('hero-attending').textContent = 'Ticketmaster\'da bak →';
+
+  const card = $('home-hero-card');
+  card.onclick = null;
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', () => window.open(ev.url, '_blank', 'noopener'));
+}
+
+function renderLiveEventCard(ev) {
+  const dateStr = ev.date
+    ? formatDay(ev.date) + ' ' + formatMonth(ev.date)
+    : '—';
+  const location = [ev.venue, ev.city].filter(Boolean).join(' · ');
+  const imgStyle = ev.image
+    ? `background-image:url('${ev.image}')`
+    : `background:#1a1a1a`;
+  const price = ev.priceMin
+    ? '₺' + Math.round(ev.priceMin) + '\'den'
+    : 'Bilet';
+
+  return `
+    <div class="event-card" onclick="window.open('${ev.url}','_blank','noopener')">
+      <div class="event-card-img" style="${imgStyle}"></div>
+      <div class="event-card-body">
+        <p class="card-venue">${location}</p>
+        <h4 class="card-name">${ev.name}</h4>
+        <p class="card-date">${dateStr}</p>
+        <div class="card-footer">
+          <span class="card-rating">${price}</span>
+          <span class="card-want-btn tm-badge">TM</span>
+        </div>
+      </div>
+    </div>`;
+}
+
 // ── AUTH ──
 function initAuth() {
   const user = DataService.getCurrentUser();
@@ -967,6 +1042,7 @@ async function initSpotifyCallback() {
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
+  loadFeaturedConcerts();
   refreshProfileStats();
   renderMyAttended();
   renderTimeline();

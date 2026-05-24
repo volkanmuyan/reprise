@@ -35,19 +35,19 @@
       <div class="scroll-area">
 
         <!-- Hero Event -->
-        <div class="hero-card" onclick="openEvent('radiohead')">
-          <div class="hero-img" style="background-image:url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80')"></div>
+        <div class="hero-card" id="home-hero-card" onclick="openEvent('radiohead')">
+          <div class="hero-img" id="hero-img" style="background-image:url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80')"></div>
           <div class="hero-overlay">
-            <div class="hero-tag">Trending Bu Hafta</div>
-            <h2 class="hero-title">Radiohead</h2>
-            <p class="hero-sub">Volkswagen Arena · İstanbul · 22 Mar</p>
+            <div class="hero-tag" id="hero-tag">Trending Bu Hafta</div>
+            <h2 class="hero-title" id="hero-title">Radiohead</h2>
+            <p class="hero-sub" id="hero-sub">Volkswagen Arena · İstanbul · 22 Mar</p>
             <div class="hero-meta">
-              <div class="rating-badge">8.9</div>
+              <div class="rating-badge" id="hero-badge">8.9</div>
               <div class="attendee-stack">
                 <img src="https://i.pravatar.cc/32?img=1" alt="">
                 <img src="https://i.pravatar.cc/32?img=5" alt="">
                 <img src="https://i.pravatar.cc/32?img=9" alt="">
-                <span>+214 katılacak</span>
+                <span id="hero-attending">+214 katılacak</span>
               </div>
             </div>
           </div>
@@ -107,7 +107,7 @@
             <span class="section-title">Yaklaşan Etkinlikler</span>
             <button class="see-all" onclick="navigate('screen-search')">Keşfet</button>
           </div>
-          <div class="card-row">
+          <div class="card-row" id="upcoming-card-row">
             <div class="event-card" onclick="openEvent('bjork')">
               <div class="event-card-img" style="background-image:url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=70')"></div>
               <div class="event-card-body">

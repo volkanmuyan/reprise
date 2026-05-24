@@ -1655,6 +1655,18 @@ body {
   50%      { opacity: .8; }
 }
 
+/* ── Ticketmaster badge on event cards ── */
+.tm-badge {
+  background: #026cdf;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+
 /* ── Auth overlay ── */
 .auth-overlay {
   position: absolute;
