@@ -1,24 +1,118 @@
 /* ──────────────────────────────────────────
-   REPRISE  —  Share Service (Canvas-based)
-   Konser kartı + Wrapped görseli üretir,
-   Web Share API veya PNG indirme ile paylaşır.
+   REPRISE  —  Share Service
+   Konser kartı + Wrapped görseli üretir.
+   HTML/CSS tabanlı kart, html-to-image ile PNG.
 ──────────────────────────────────────────── */
 (function (global) {
   'use strict';
 
+  // ── CARD CSS (literal hex — no CSS vars, renders cleanly in html-to-image) ──
+  // NOTE: .rp-sc does NOT include position/left/top — those are set inline at render time.
+  const CARD_CSS = `
+.rp-sc, .rp-sc *, .rp-sc *::before, .rp-sc *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.rp-sc {
+  background: #0A0A0A; color: #F5F3EF;
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.rp-sc.story  { width: 360px; height: 640px; }
+.rp-sc.square { width: 360px; height: 360px; }
+
+.rp-sc-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 26px 26px 0;
+}
+.rp-sc-logo {
+  font-size: 16px; font-weight: 800; letter-spacing: -0.5px;
+  color: #C8FF00; text-transform: lowercase;
+}
+.rp-sc-ctx { font-size: 10px; color: #444; font-weight: 500; }
+
+.rp-sc-body {
+  flex: 1; padding: 22px 26px 18px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.rp-sc-artist {
+  font-size: 40px; font-weight: 900; color: #F5F3EF;
+  line-height: 1; letter-spacing: -1.5px; text-transform: lowercase;
+  word-break: break-word; margin-bottom: 8px;
+}
+.rp-sc-venue { font-size: 13px; color: #8A8780; text-transform: lowercase; margin-bottom: 3px; }
+.rp-sc-date  { font-size: 11px; color: #333; text-transform: lowercase; margin-bottom: 26px; }
+
+.rp-sc-score-row { display: flex; align-items: baseline; gap: 3px; margin-bottom: 18px; }
+.rp-sc-score     { font-size: 76px; font-weight: 900; color: #C8FF00; line-height: 1; letter-spacing: -3px; }
+.rp-sc-score-den { font-size: 22px; font-weight: 600; color: #C8FF00; opacity: 0.5; padding-bottom: 7px; }
+
+.rp-sc-comment {
+  font-size: 13px; color: #6A6760; font-style: italic;
+  line-height: 1.6; border-left: 2px solid #C8FF00; padding-left: 10px;
+}
+
+.rp-sc-stub { position: relative; padding: 14px 26px; }
+.rp-sc-stub-line { border-top: 1.5px dashed #1E1E1E; }
+.rp-sc-hole {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #0A0A0A; border: 1.5px dashed #1E1E1E;
+}
+.rp-sc-hole.l { left: 12px; }
+.rp-sc-hole.r { right: 12px; }
+
+.rp-sc-ftr { padding: 0 26px 26px; display: flex; flex-direction: column; gap: 8px; }
+.rp-sc-metrics { display: flex; gap: 20px; }
+.rp-sc-metric { display: flex; flex-direction: column; gap: 2px; }
+.rp-sc-m-label { font-size: 9px; color: #333; text-transform: lowercase; font-weight: 600; letter-spacing: 0.05em; }
+.rp-sc-m-val   { font-size: 13px; font-weight: 700; color: #F5F3EF; }
+.rp-sc-sig { display: flex; align-items: center; justify-content: space-between; }
+.rp-sc-uname { font-size: 11px; font-weight: 600; color: #555; }
+.rp-sc-brand { font-size: 10px; color: #2A2A2A; }
+
+/* Square adjustments */
+.rp-sc.square .rp-sc-body { padding: 14px 26px; justify-content: center; }
+.rp-sc.square .rp-sc-artist { font-size: 28px; letter-spacing: -1px; margin-bottom: 6px; }
+.rp-sc.square .rp-sc-score  { font-size: 52px; }
+.rp-sc.square .rp-sc-score-den { font-size: 18px; }
+.rp-sc.square .rp-sc-date { margin-bottom: 16px; }
+.rp-sc.square .rp-sc-comment { font-size: 12px; }
+
+/* Wrapped card */
+.rp-sc-wr-row { margin-bottom: 22px; }
+.rp-sc-wr-label { font-size: 10px; color: #444; text-transform: lowercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
+.rp-sc-wr-big { font-size: 60px; font-weight: 900; color: #C8FF00; line-height: 1; letter-spacing: -2px; }
+.rp-sc-wr-mid { font-size: 28px; font-weight: 800; color: #F5F3EF; letter-spacing: -0.5px; }
+.rp-sc-wr-sub { font-size: 13px; color: #8A8780; text-transform: lowercase; }
+.rp-sc-wr-unit { font-size: 13px; color: #555; font-weight: 500; }
+`;
+
+  let _cssInjected = false;
+  function injectCSS() {
+    if (_cssInjected) return;
+    _cssInjected = true;
+    const s = document.createElement('style');
+    s.id = 'rp-share-card-css';
+    s.textContent = CARD_CSS;
+    document.head.appendChild(s);
+  }
+
   // ── HELPERS ──────────────────────────────────────────────────────────────
-  const MONTHS_TR = ['ocak','şubat','mart','nisan','mayıs','haziran',
-                     'temmuz','ağustos','eylül','ekim','kasım','aralık'];
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
   function fmtDate(dateStr) {
     if (!dateStr) return '';
+    const M = ['ocak','şubat','mart','nisan','mayıs','haziran','temmuz','ağustos','eylül','ekim','kasım','aralık'];
     try {
       const d = new Date(dateStr + 'T12:00:00');
-      return d.getDate() + ' ' + MONTHS_TR[d.getMonth()] + ' ' + d.getFullYear();
+      return d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear();
     } catch { return dateStr; }
   }
 
-  function getConcertLabel(concert) {
+  function getConcertContext(concert) {
     try {
       const all  = global.DataService.getHistory();
       const year = concert.date ? new Date(concert.date + 'T12:00:00').getFullYear() : null;
@@ -27,331 +121,162 @@
         .filter(c => c.date && new Date(c.date + 'T12:00:00').getFullYear() === year)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
       const idx = inYear.findIndex(c => c.id === concert.id);
-      return idx >= 0 ? year + "’te " + (idx + 1) + ". konser" : '';
+      return idx >= 0 ? year + "'te " + (idx + 1) + ". konser" : '';
     } catch { return ''; }
   }
 
-  // Word-wrap text to fit maxWidth; returns array of line strings
-  function wrapText(ctx, text, maxWidth) {
-    const words = text.split(' ');
-    const lines = [];
-    let line = '';
-    for (const word of words) {
-      const probe = line ? line + ' ' + word : word;
-      if (ctx.measureText(probe).width > maxWidth && line) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = probe;
-      }
-    }
-    if (line) lines.push(line);
-    return lines.length ? lines : [''];
-  }
-
   // ── CONCERT CARD ──────────────────────────────────────────────────────────
-  function drawConcertCard(ctx, W, H, concert, user, ratio) {
-    const S   = ratio === 'square';
-    const PAD = 26;
+  function buildConcertCard(concert, user, ratio) {
+    injectCSS();
+    const el = document.createElement('div');
+    el.className = 'rp-sc ' + ratio;
 
-    // Background
-    ctx.fillStyle = '#0A0A0A';
-    ctx.fillRect(0, 0, W, H);
-
-    // Header
-    ctx.textBaseline = 'top';
-    ctx.textAlign    = 'left';
-    ctx.fillStyle    = '#C8FF00';
-    ctx.font         = '800 16px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.fillText('reprise', PAD, PAD);
-
-    const ctxLabel = getConcertLabel(concert);
-    if (ctxLabel) {
-      ctx.fillStyle  = '#444444';
-      ctx.font       = '500 10px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textAlign  = 'right';
-      ctx.fillText(ctxLabel, W - PAD, PAD + 3);
-    }
-
-    // Footer
     const uname = user && user.username ? '@' + user.username : '';
-    ctx.textBaseline = 'bottom';
-    if (uname) {
-      ctx.fillStyle = '#555555';
-      ctx.font      = '600 11px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(uname, PAD, H - PAD);
-    }
-    ctx.fillStyle  = '#2A2A2A';
-    ctx.font       = '400 10px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.textAlign  = 'right';
-    ctx.fillText('reprise.app', W - PAD, H - PAD);
-
-    // Stub (story only)
-    const FOOTER_H  = 50;
-    const STUB_H    = 50;
-
-    if (!S) {
-      const stubCenterY = H - FOOTER_H - STUB_H / 2;
-
-      // Dashed line
-      ctx.strokeStyle = '#1E1E1E';
-      ctx.lineWidth   = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(PAD + 14, stubCenterY);
-      ctx.lineTo(W - PAD - 14, stubCenterY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Left hole
-      ctx.fillStyle = '#0A0A0A';
-      ctx.beginPath();
-      ctx.arc(PAD - 2, stubCenterY, 11, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.strokeStyle = '#1E1E1E';
-      ctx.lineWidth   = 1.5;
-      ctx.setLineDash([2, 2]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Right hole
-      ctx.fillStyle = '#0A0A0A';
-      ctx.beginPath();
-      ctx.arc(W - PAD + 2, stubCenterY, 11, 0, 2 * Math.PI);
-      ctx.fill();
-      ctx.strokeStyle = '#1E1E1E';
-      ctx.lineWidth   = 1.5;
-      ctx.setLineDash([2, 2]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Body content — drawn bottom-up
-    const BODY_BOTTOM = S
-      ? H - FOOTER_H - PAD
-      : H - FOOTER_H - STUB_H - 18;
-
-    let y = BODY_BOTTOM;
-
-    // Comment / notes
-    if (concert.notes) {
-      const noteText  = '“' + concert.notes + '”';
-      ctx.font        = 'italic 13px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      const noteLines = wrapText(ctx, noteText, W - PAD * 2 - 14);
-      const NOTE_LH   = 21;
-      const noteH     = noteLines.length * NOTE_LH;
-      const noteTop   = y - noteH;
-
-      ctx.fillStyle    = '#6A6760';
-      ctx.textBaseline = 'top';
-      ctx.textAlign    = 'left';
-      noteLines.forEach(function(line, i) {
-        ctx.fillText(line, PAD + 14, noteTop + i * NOTE_LH);
-      });
-
-      // Accent left bar
-      ctx.fillStyle = '#C8FF00';
-      ctx.fillRect(PAD, noteTop - 2, 2, noteH + 4);
-
-      y = noteTop - 18;
-    }
-
-    // Score
-    if (concert.rating) {
-      const scoreStr  = String(concert.rating);
-      const scoreSize = S ? 52 : 76;
-      const denSize   = S ? 18 : 22;
-
-      ctx.fillStyle    = '#C8FF00';
-      ctx.font         = '900 ' + scoreSize + 'px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'bottom';
-      ctx.textAlign    = 'left';
-      const scoreW = ctx.measureText(scoreStr).width;
-      ctx.fillText(scoreStr, PAD, y);
-
-      ctx.font        = '600 ' + denSize + 'px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.globalAlpha = 0.5;
-      ctx.fillText('/10', PAD + scoreW + 4, y - 7);
-      ctx.globalAlpha = 1;
-
-      y -= scoreSize + 26;
-    }
-
-    // Date
-    if (concert.date) {
-      ctx.fillStyle    = '#333333';
-      ctx.font         = '400 11px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'bottom';
-      ctx.textAlign    = 'left';
-      ctx.fillText(fmtDate(concert.date), PAD, y);
-      y -= 14;
-    }
-
-    // Venue
+    const ctx   = getConcertContext(concert);
     const venue = [concert.venue, concert.city].filter(Boolean).join(' · ');
-    if (venue) {
-      ctx.fillStyle    = '#8A8780';
-      ctx.font         = '400 13px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'bottom';
-      ctx.textAlign    = 'left';
-      ctx.fillText(venue, PAD, y);
-      y -= 21;
-    }
 
-    // Artist name (may wrap)
-    const artist = (concert.artist || '').toLowerCase();
-    if (artist) {
-      const artistSize = S ? 28 : 40;
-      ctx.font = '900 ' + artistSize + 'px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      const artistLines = wrapText(ctx, artist, W - PAD * 2);
+    const scoreHtml = concert.rating
+      ? '<div class="rp-sc-score-row">' +
+          '<span class="rp-sc-score">' + esc(String(concert.rating)) + '</span>' +
+          '<span class="rp-sc-score-den">/10</span>' +
+        '</div>'
+      : '';
 
-      ctx.fillStyle    = '#F5F3EF';
-      ctx.textBaseline = 'bottom';
-      ctx.textAlign    = 'left';
-      for (var i = artistLines.length - 1; i >= 0; i--) {
-        ctx.fillText(artistLines[i], PAD, y);
-        y -= artistSize;
-      }
-    }
+    const commentHtml = concert.notes
+      ? '<p class="rp-sc-comment">&ldquo;' + esc(concert.notes) + '&rdquo;</p>'
+      : '';
+
+    const stubHtml = (ratio === 'story')
+      ? '<div class="rp-sc-stub">' +
+          '<div class="rp-sc-hole l"></div>' +
+          '<div class="rp-sc-stub-line"></div>' +
+          '<div class="rp-sc-hole r"></div>' +
+        '</div>'
+      : '';
+
+    el.innerHTML =
+      '<div class="rp-sc-hdr">' +
+        '<span class="rp-sc-logo">reprise</span>' +
+        '<span class="rp-sc-ctx">' + esc(ctx) + '</span>' +
+      '</div>' +
+      '<div class="rp-sc-body">' +
+        '<div class="rp-sc-artist">' + esc(concert.artist || '') + '</div>' +
+        '<div class="rp-sc-venue">' + esc(venue) + '</div>' +
+        '<div class="rp-sc-date">'  + fmtDate(concert.date) + '</div>' +
+        scoreHtml +
+        commentHtml +
+      '</div>' +
+      stubHtml +
+      '<div class="rp-sc-ftr">' +
+        '<div class="rp-sc-sig">' +
+          '<span class="rp-sc-uname">' + esc(uname) + '</span>' +
+          '<span class="rp-sc-brand">reprise.app</span>' +
+        '</div>' +
+      '</div>';
+
+    return el;
   }
 
   // ── WRAPPED CARD ──────────────────────────────────────────────────────────
-  function drawWrappedCard(ctx, W, H, stats, user) {
-    const PAD     = 26;
-    const ROW_GAP = 22;
+  function buildWrappedCard(stats, user, ratio) {
+    injectCSS();
+    const el = document.createElement('div');
+    el.className = 'rp-sc ' + ratio;
 
-    // Background
-    ctx.fillStyle = '#0A0A0A';
-    ctx.fillRect(0, 0, W, H);
-
-    // Header
-    ctx.textBaseline = 'top';
-    ctx.textAlign    = 'left';
-    ctx.fillStyle    = '#C8FF00';
-    ctx.font         = '800 16px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.fillText('reprise', PAD, PAD);
-
-    ctx.fillStyle  = '#444444';
-    ctx.font       = '500 10px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.textAlign  = 'right';
-    ctx.fillText(stats.year + ' wrapped', W - PAD, PAD + 3);
-
-    // Footer
     const uname = user && user.username ? '@' + user.username : '';
-    ctx.textBaseline = 'bottom';
-    if (uname) {
-      ctx.fillStyle = '#555555';
-      ctx.font      = '600 11px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(uname, PAD, H - PAD);
-    }
-    ctx.fillStyle  = '#2A2A2A';
-    ctx.font       = '400 10px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.textAlign  = 'right';
-    ctx.fillText('reprise.app', W - PAD, H - PAD);
+    const rows  = [];
 
-    // Rows — drawn top-down
-    var y = PAD + 16 + 24;
+    rows.push(
+      '<div class="rp-sc-wr-row">' +
+        '<div class="rp-sc-wr-label">' + stats.year + ' · konser sayın</div>' +
+        '<div class="rp-sc-wr-big">'   + stats.total + '</div>' +
+        '<div class="rp-sc-wr-unit">konser</div>' +
+      '</div>'
+    );
 
-    function rowLabel(text) {
-      ctx.fillStyle    = '#444444';
-      ctx.font         = '600 10px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textAlign    = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(text, PAD, y);
-      y += 16;
-    }
+    if (stats.avgRating) rows.push(
+      '<div class="rp-sc-wr-row">' +
+        '<div class="rp-sc-wr-label">ortalama puan</div>' +
+        '<div class="rp-sc-wr-mid">' + stats.avgRating + ' <span class="rp-sc-wr-unit">/ 10</span></div>' +
+      '</div>'
+    );
 
-    // Total concerts
-    rowLabel(stats.year + ' · konser sayın');
-    ctx.fillStyle    = '#C8FF00';
-    ctx.font         = '900 60px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.textAlign    = 'left';
-    ctx.fillText(String(stats.total), PAD, y);
-    y += 64;
-    ctx.fillStyle = '#555555';
-    ctx.font      = '500 13px -apple-system, "Helvetica Neue", Arial, sans-serif';
-    ctx.fillText('konser', PAD, y);
-    y += 17 + ROW_GAP;
+    if (stats.best) rows.push(
+      '<div class="rp-sc-wr-row">' +
+        '<div class="rp-sc-wr-label">en iyi konser</div>' +
+        '<div class="rp-sc-wr-sub" style="font-size:18px;font-weight:800;color:#F5F3EF;text-transform:lowercase">' + esc(stats.best.artist) + '</div>' +
+        (stats.best.venue ? '<div class="rp-sc-wr-unit">' + esc([stats.best.venue, stats.best.city].filter(Boolean).join(' · ')) + '</div>' : '') +
+      '</div>'
+    );
 
-    // Average rating
-    if (stats.avgRating && y < H - 80) {
-      rowLabel('ortalama puan');
-      ctx.fillStyle    = '#F5F3EF';
-      ctx.font         = '800 28px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'top';
-      ctx.textAlign    = 'left';
-      var avgW = ctx.measureText(stats.avgRating).width;
-      ctx.fillText(stats.avgRating, PAD, y);
-      ctx.fillStyle = '#555555';
-      ctx.font      = '500 13px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.fillText('/ 10', PAD + avgW + 6, y + 10);
-      y += 32 + ROW_GAP;
-    }
+    if (stats.uniqueArtists > 1) rows.push(
+      '<div class="rp-sc-wr-row">' +
+        '<div class="rp-sc-wr-label">farklı sanatçı</div>' +
+        '<div class="rp-sc-wr-mid">' + stats.uniqueArtists + '</div>' +
+      '</div>'
+    );
 
-    // Best concert
-    if (stats.best && y < H - 80) {
-      rowLabel('en iyi konser');
-      ctx.fillStyle    = '#F5F3EF';
-      ctx.font         = '800 18px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'top';
-      ctx.textAlign    = 'left';
-      ctx.fillText((stats.best.artist || '').toLowerCase(), PAD, y);
-      y += 22;
-      var bestVenue = [stats.best.venue, stats.best.city].filter(Boolean).join(' · ');
-      if (bestVenue) {
-        ctx.fillStyle = '#555555';
-        ctx.font      = '500 13px -apple-system, "Helvetica Neue", Arial, sans-serif';
-        ctx.fillText(bestVenue, PAD, y);
-        y += 17;
-      }
-      y += ROW_GAP;
-    }
+    if (stats.topCity) rows.push(
+      '<div class="rp-sc-wr-row">' +
+        '<div class="rp-sc-wr-label">en çok gittiğin şehir</div>' +
+        '<div class="rp-sc-wr-sub" style="font-size:16px;font-weight:700;color:#F5F3EF;text-transform:lowercase">' +
+          esc(stats.topCity.name) + ' <span class="rp-sc-wr-unit">' + stats.topCity.count + ' konser</span>' +
+        '</div>' +
+      '</div>'
+    );
 
-    // Unique artists
-    if (stats.uniqueArtists > 1 && y < H - 80) {
-      rowLabel('farklı sanatçı');
-      ctx.fillStyle    = '#F5F3EF';
-      ctx.font         = '800 28px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'top';
-      ctx.textAlign    = 'left';
-      ctx.fillText(String(stats.uniqueArtists), PAD, y);
-      y += 32 + ROW_GAP;
-    }
+    el.innerHTML =
+      '<div class="rp-sc-hdr">' +
+        '<span class="rp-sc-logo">reprise</span>' +
+        '<span class="rp-sc-ctx">' + stats.year + ' wrapped</span>' +
+      '</div>' +
+      '<div class="rp-sc-body" style="justify-content:flex-start;padding-top:24px">' +
+        rows.join('') +
+      '</div>' +
+      '<div class="rp-sc-ftr">' +
+        '<div class="rp-sc-sig">' +
+          '<span class="rp-sc-uname">' + esc(uname) + '</span>' +
+          '<span class="rp-sc-brand">reprise.app</span>' +
+        '</div>' +
+      '</div>';
 
-    // Top city
-    if (stats.topCity && y < H - 60) {
-      rowLabel('en çok gittiğin şehir');
-      ctx.fillStyle    = '#F5F3EF';
-      ctx.font         = '700 16px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.textBaseline = 'top';
-      ctx.textAlign    = 'left';
-      var cityName = (stats.topCity.name || '').toLowerCase();
-      var cityW    = ctx.measureText(cityName).width;
-      ctx.fillText(cityName, PAD, y);
-      ctx.fillStyle = '#555555';
-      ctx.font      = '500 13px -apple-system, "Helvetica Neue", Arial, sans-serif';
-      ctx.fillText(stats.topCity.count + ' konser', PAD + cityW + 8, y + 2);
-    }
+    return el;
   }
 
   // ── RENDER TO PNG ──────────────────────────────────────────────────────────
-  function renderToPng(drawFn, ratio) {
-    const SCALE = 3;
-    const DIMS  = { story: { w: 360, h: 640 }, square: { w: 360, h: 360 } };
-    const dim   = DIMS[ratio] || DIMS.story;
+  async function renderToPng(el, ratio) {
+    const DIMS = { story: { w: 360, h: 640 }, square: { w: 360, h: 360 } };
+    const { w, h } = DIMS[ratio] || DIMS.story;
 
-    const canvas  = document.createElement('canvas');
-    canvas.width  = dim.w * SCALE;
-    canvas.height = dim.h * SCALE;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(SCALE, SCALE);
+    // Position off-screen: absolute below viewport (NOT fixed, which confuses html-to-image)
+    el.style.cssText = [
+      'position:absolute',
+      'top:200vh',
+      'left:0',
+      'width:' + w + 'px',
+      'height:' + h + 'px',
+      'z-index:-1',
+    ].join(';');
+    document.body.appendChild(el);
 
-    drawFn(ctx, dim.w, dim.h);
+    try {
+      await document.fonts.ready;
+      // Wait a frame so flex layout settles
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    return canvas.toDataURL('image/png');
+      const lib = global.htmlToImage;
+      if (!lib) throw new Error('html-to-image not loaded');
+
+      return await lib.toPng(el, {
+        width:       w,
+        height:      h,
+        pixelRatio:  2,
+        cacheBust:   true,
+        style: { 'border-radius': '0' },
+      });
+    } finally {
+      el.remove();
+    }
   }
 
   // ── PUBLIC API ────────────────────────────────────────────────────────────
@@ -359,18 +284,14 @@
 
     async concertCard(concert, user, ratio) {
       ratio = ratio || 'story';
-      return renderToPng(
-        function(ctx, w, h) { drawConcertCard(ctx, w, h, concert, user, ratio); },
-        ratio
-      );
+      const el = buildConcertCard(concert, user, ratio);
+      return renderToPng(el, ratio);
     },
 
     async wrappedCard(stats, user, ratio) {
       ratio = ratio || 'story';
-      return renderToPng(
-        function(ctx, w, h) { drawWrappedCard(ctx, w, h, stats, user); },
-        ratio
-      );
+      const el = buildWrappedCard(stats, user, ratio);
+      return renderToPng(el, ratio);
     },
 
     async shareOrDownload(dataUrl, filename) {
@@ -387,7 +308,7 @@
         }
       }
       const a = document.createElement('a');
-      a.href = dataUrl;
+      a.href     = dataUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
