@@ -1492,6 +1492,12 @@ body {
   line-height: 1.3;
 }
 
+.spotify-dev-note {
+  font-size: 10px;
+  color: #444;
+  margin-top: 2px;
+}
+
 .spotify-connect-btn {
   flex-shrink: 0;
   background: #1DB954;

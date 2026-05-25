@@ -854,17 +854,22 @@ function renderUserList(users) {
 
 function initUserSearch() {
   const input = document.getElementById('user-search-input');
-  if (!input || input._userSearchBound) return;
+  if (!input) return;
+
+  // Always show default list when section opens
+  renderUserList(DataService.getDefaultUsers());
+
+  if (input._userSearchBound) return;
   input._userSearchBound = true;
   let _timer = null;
   input.addEventListener('input', function() {
     clearTimeout(_timer);
     const q = this.value.trim();
     if (!q) {
-      document.getElementById('user-result-list').innerHTML = '<p class="user-search-hint">Aramak için kullanıcı adını yaz</p>';
+      renderUserList(DataService.getDefaultUsers());
       return;
     }
-    _timer = setTimeout(() => renderUserList(DataService.searchUsers(q)), 250);
+    _timer = setTimeout(async () => renderUserList(await DataService.searchUsers(q)), 250);
   });
 }
 
@@ -1460,8 +1465,9 @@ async function _generateShareCard() {
     _shareDataUrl = await ShareService.concertCard(_shareConcert, user, _shareRatio);
     _setShareLoading(false, _shareDataUrl);
   } catch (e) {
-    closeSharePreview();
-    showToast('Kart oluşturulamadı: ' + (e.message || ''));
+    console.error('Share card error:', e);
+    _setShareLoading(false, null);
+    showToast('Kart oluşturulamadı');
   }
 }
 
@@ -1605,6 +1611,9 @@ document.getElementById('search-genre-chips')?.addEventListener('click', functio
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
+  // Re-sync profile to backend so existing users are discoverable cross-device
+  const _initUser = DataService.getCurrentUser();
+  if (_initUser) DataService._syncUserToBackend(_initUser);
   loadFeaturedConcerts();
   refreshProfileStats();
   refreshFollowStats();

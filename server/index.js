@@ -8,6 +8,7 @@ const rateLimit  = require('express-rate-limit');
 const spotifyRouter   = require('./routes/spotify');
 const concertsRouter  = require('./routes/concerts');
 const setlistsRouter  = require('./routes/setlists');
+const usersRouter     = require('./routes/users');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/', limiter);
 app.use('/api/spotify',  spotifyRouter);
 app.use('/api/concerts', concertsRouter);
 app.use('/api/setlists', setlistsRouter);
+app.use('/api/users',    usersRouter);
 
 // ── HEALTH ───────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', ts: Date.now() }));

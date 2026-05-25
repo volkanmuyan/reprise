@@ -559,6 +559,7 @@
       if (account.password !== password) throw new Error('Şifre hatalı');
       const user = { username: account.username, displayName: account.displayName, bio: account.bio, avatar: account.avatar };
       DataService.saveCurrentUser(user);
+      DataService._syncUserToBackend(user);
       return user;
     },
 
@@ -580,6 +581,7 @@
       localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
       const user = { username, displayName, bio, avatar };
       DataService.saveCurrentUser(user);
+      DataService._syncUserToBackend(user);
       return user;
     },
 
@@ -684,10 +686,10 @@
     },
 
     // Search both real accounts and static mock users
-    searchUsers(query) {
+    async searchUsers(query) {
       const q = (query || '').toLowerCase().trim();
       if (!q) return [];
-      const currentUser = DataService.getCurrentUser();
+      const currentUser     = DataService.getCurrentUser();
       const currentUsername = (currentUser?.username || '').toLowerCase();
 
       const fromAccounts = DataService._getAccounts()
@@ -697,28 +699,91 @@
           (a.displayName || '').toLowerCase().includes(q)
         )
         .map(a => ({
-          username: a.username,
+          username:    a.username,
           displayName: a.displayName || a.username,
-          bio: a.bio || '',
-          avatar: a.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(a.username)}`,
+          bio:         a.bio || '',
+          avatar:      a.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(a.username)}`,
         }));
 
-      const realSet = new Set(fromAccounts.map(a => a.username.toLowerCase()));
+      const localSet = new Set(fromAccounts.map(a => a.username.toLowerCase()));
+
+      // Query backend for cross-device discovery
+      let fromBackend = [];
+      try {
+        const res = await fetch(DataService.apiBase + '/users/search?q=' + encodeURIComponent(q));
+        if (res.ok) {
+          const data = await res.json();
+          fromBackend = data
+            .filter(u => u.username.toLowerCase() !== currentUsername)
+            .filter(u => !localSet.has(u.username.toLowerCase()))
+            .map(u => ({
+              username:    u.username,
+              displayName: u.displayName || u.username,
+              bio:         u.bio || '',
+              avatar:      u.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(u.username)}`,
+            }));
+        }
+      } catch { /* backend unavailable — graceful degrade */ }
+
+      const combined = new Set();
+      const results  = [];
+      for (const u of [...fromAccounts, ...fromBackend]) {
+        const key = u.username.toLowerCase();
+        if (!combined.has(key)) { combined.add(key); results.push(u); }
+      }
+
+      // Also include matching static mock users not already in results
+      for (const u of Object.values(USERS)) {
+        if (results.length >= 20) break;
+        const key = u.username.toLowerCase();
+        if (key === currentUsername || combined.has(key)) continue;
+        if (u.username.toLowerCase().includes(q) || (u.bio || '').toLowerCase().includes(q)) {
+          combined.add(key);
+          results.push({ username: u.username, displayName: u.username, bio: u.bio || '', avatar: u.avatar || '' });
+        }
+      }
+
+      return results.slice(0, 20);
+    },
+
+    // Fire-and-forget: register/update a user's public profile in the backend directory
+    _syncUserToBackend(user) {
+      if (!user || !user.username) return;
+      fetch(DataService.apiBase + '/users/register', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          username:    user.username,
+          displayName: user.displayName || user.username,
+          bio:         user.bio || '',
+          avatar:      user.avatar || '',
+        }),
+      }).catch(() => {});  // ignore network errors silently
+    },
+
+    // Returns all browseable users (static mocks + local accounts), excluding self
+    getDefaultUsers() {
+      const currentUser     = DataService.getCurrentUser();
+      const currentUsername = (currentUser?.username || '').toLowerCase();
+      const fromAccounts = DataService._getAccounts()
+        .filter(a => a.username.toLowerCase() !== currentUsername)
+        .map(a => ({
+          username:    a.username,
+          displayName: a.displayName || a.username,
+          bio:         a.bio || '',
+          avatar:      a.avatar || `https://i.pravatar.cc/80?u=${encodeURIComponent(a.username)}`,
+        }));
+      const realSet    = new Set(fromAccounts.map(a => a.username.toLowerCase()));
       const fromStatic = Object.values(USERS)
         .filter(u => u.username.toLowerCase() !== currentUsername)
         .filter(u => !realSet.has(u.username.toLowerCase()))
-        .filter(u =>
-          u.username.toLowerCase().includes(q) ||
-          (u.bio || '').toLowerCase().includes(q)
-        )
         .map(u => ({
-          username: u.username,
+          username:    u.username,
           displayName: u.username,
-          bio: u.bio || '',
-          avatar: u.avatar || '',
+          bio:         u.bio || '',
+          avatar:      u.avatar || '',
         }));
-
-      return [...fromAccounts, ...fromStatic].slice(0, 20);
+      return [...fromAccounts, ...fromStatic];
     },
 
     // ── Concert search (Ticketmaster via backend) ──
