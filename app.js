@@ -1467,7 +1467,7 @@ async function _generateShareCard() {
   } catch (e) {
     console.error('Share card error:', e);
     _setShareLoading(false, null);
-    showToast('Kart oluşturulamadı');
+    showToast('Kart hatası: ' + (e && e.message ? e.message : String(e)));
   }
 }
 
