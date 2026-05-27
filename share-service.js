@@ -1,282 +1,351 @@
 /* ──────────────────────────────────────────
    REPRISE  —  Share Service
-   Konser kartı + Wrapped görseli üretir.
-   HTML/CSS tabanlı kart, html-to-image ile PNG.
+   Canvas tabanlı PNG üretimi (html-to-image
+   iOS PWA'da SVG foreignObject sebebiyle
+   güvenilmez çalıştığından tamamen Canvas).
 ──────────────────────────────────────────── */
 (function (global) {
   'use strict';
 
-  // ── CARD CSS (literal hex — no CSS vars, renders cleanly in html-to-image) ──
-  // NOTE: .rp-sc does NOT include position/left/top — those are set inline at render time.
-  const CARD_CSS = `
-.rp-sc, .rp-sc *, .rp-sc *::before, .rp-sc *::after {
-  box-sizing: border-box; margin: 0; padding: 0;
-  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-.rp-sc {
-  background: #0A0A0A; color: #F5F3EF;
-  overflow: hidden; display: flex; flex-direction: column;
-}
-.rp-sc.story  { width: 360px; height: 640px; }
-.rp-sc.square { width: 360px; height: 360px; }
+  const M_TR = ['ocak','şubat','mart','nisan','mayıs','haziran',
+                'temmuz','ağustos','eylül','ekim','kasım','aralık'];
 
-.rp-sc-hdr {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 26px 26px 0;
-}
-.rp-sc-logo {
-  font-size: 16px; font-weight: 800; letter-spacing: -0.5px;
-  color: #C8FF00; text-transform: lowercase;
-}
-.rp-sc-ctx { font-size: 10px; color: #444; font-weight: 500; }
-
-.rp-sc-body {
-  flex: 1; padding: 22px 26px 18px;
-  display: flex; flex-direction: column; justify-content: flex-end;
-}
-.rp-sc-artist {
-  font-size: 40px; font-weight: 900; color: #F5F3EF;
-  line-height: 1; letter-spacing: -1.5px; text-transform: lowercase;
-  word-break: break-word; margin-bottom: 8px;
-}
-.rp-sc-venue { font-size: 13px; color: #8A8780; text-transform: lowercase; margin-bottom: 3px; }
-.rp-sc-date  { font-size: 11px; color: #333; text-transform: lowercase; margin-bottom: 26px; }
-
-.rp-sc-score-row { display: flex; align-items: baseline; gap: 3px; margin-bottom: 18px; }
-.rp-sc-score     { font-size: 76px; font-weight: 900; color: #C8FF00; line-height: 1; letter-spacing: -3px; }
-.rp-sc-score-den { font-size: 22px; font-weight: 600; color: #C8FF00; opacity: 0.5; padding-bottom: 7px; }
-
-.rp-sc-comment {
-  font-size: 13px; color: #6A6760; font-style: italic;
-  line-height: 1.6; border-left: 2px solid #C8FF00; padding-left: 10px;
-}
-
-.rp-sc-stub { position: relative; padding: 14px 26px; }
-.rp-sc-stub-line { border-top: 1.5px dashed #1E1E1E; }
-.rp-sc-hole {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  width: 22px; height: 22px; border-radius: 50%;
-  background: #0A0A0A; border: 1.5px dashed #1E1E1E;
-}
-.rp-sc-hole.l { left: 12px; }
-.rp-sc-hole.r { right: 12px; }
-
-.rp-sc-ftr { padding: 0 26px 26px; display: flex; flex-direction: column; gap: 8px; }
-.rp-sc-metrics { display: flex; gap: 20px; }
-.rp-sc-metric { display: flex; flex-direction: column; gap: 2px; }
-.rp-sc-m-label { font-size: 9px; color: #333; text-transform: lowercase; font-weight: 600; letter-spacing: 0.05em; }
-.rp-sc-m-val   { font-size: 13px; font-weight: 700; color: #F5F3EF; }
-.rp-sc-sig { display: flex; align-items: center; justify-content: space-between; }
-.rp-sc-uname { font-size: 11px; font-weight: 600; color: #555; }
-.rp-sc-brand { font-size: 10px; color: #2A2A2A; }
-
-/* Square adjustments */
-.rp-sc.square .rp-sc-body { padding: 14px 26px; justify-content: center; }
-.rp-sc.square .rp-sc-artist { font-size: 28px; letter-spacing: -1px; margin-bottom: 6px; }
-.rp-sc.square .rp-sc-score  { font-size: 52px; }
-.rp-sc.square .rp-sc-score-den { font-size: 18px; }
-.rp-sc.square .rp-sc-date { margin-bottom: 16px; }
-.rp-sc.square .rp-sc-comment { font-size: 12px; }
-
-/* Wrapped card */
-.rp-sc-wr-row { margin-bottom: 22px; }
-.rp-sc-wr-label { font-size: 10px; color: #444; text-transform: lowercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
-.rp-sc-wr-big { font-size: 60px; font-weight: 900; color: #C8FF00; line-height: 1; letter-spacing: -2px; }
-.rp-sc-wr-mid { font-size: 28px; font-weight: 800; color: #F5F3EF; letter-spacing: -0.5px; }
-.rp-sc-wr-sub { font-size: 13px; color: #8A8780; text-transform: lowercase; }
-.rp-sc-wr-unit { font-size: 13px; color: #555; font-weight: 500; }
-`;
-
-  let _cssInjected = false;
-  function injectCSS() {
-    if (_cssInjected) return;
-    _cssInjected = true;
-    const s = document.createElement('style');
-    s.id = 'rp-share-card-css';
-    s.textContent = CARD_CSS;
-    document.head.appendChild(s);
-  }
-
-  // ── HELPERS ──────────────────────────────────────────────────────────────
-  function esc(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function fmtDate(dateStr) {
-    if (!dateStr) return '';
-    const M = ['ocak','şubat','mart','nisan','mayıs','haziran','temmuz','ağustos','eylül','ekim','kasım','aralık'];
+  function fmtDate(ds) {
+    if (!ds) return '';
     try {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear();
-    } catch { return dateStr; }
+      const d = new Date(ds + 'T12:00:00');
+      return d.getDate() + ' ' + M_TR[d.getMonth()] + ' ' + d.getFullYear();
+    } catch { return ds; }
   }
 
-  function getConcertContext(concert) {
+  function getConcertLabel(c) {
     try {
       const all  = global.DataService.getHistory();
-      const year = concert.date ? new Date(concert.date + 'T12:00:00').getFullYear() : null;
+      const year = c.date ? new Date(c.date + 'T12:00:00').getFullYear() : null;
       if (!year) return '';
       const inYear = all
-        .filter(c => c.date && new Date(c.date + 'T12:00:00').getFullYear() === year)
+        .filter(x => x.date && new Date(x.date + 'T12:00:00').getFullYear() === year)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
-      const idx = inYear.findIndex(c => c.id === concert.id);
+      const idx = inYear.findIndex(x => x.id === c.id);
       return idx >= 0 ? year + "'te " + (idx + 1) + ". konser" : '';
     } catch { return ''; }
   }
 
+  function wrapText(ctx, text, maxW) {
+    if (!text) return [''];
+    const words = text.split(' ');
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && cur) {
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = test;
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function setLS(ctx, v) {
+    try { ctx.letterSpacing = v; } catch (_) {}
+  }
+
   // ── CONCERT CARD ──────────────────────────────────────────────────────────
-  function buildConcertCard(concert, user, ratio) {
-    injectCSS();
-    const el = document.createElement('div');
-    el.className = 'rp-sc ' + ratio;
+  function drawConcert(ctx, W, H, concert, user, ratio) {
+    const S   = ratio === 'square';
+    const PAD = 26;
+    const BG  = '#0A0A0A';
 
+    // Background
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'left';
+    setLS(ctx, '-0.5px');
+    ctx.font      = '800 16px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle = '#C8FF00';
+    ctx.fillText('reprise', PAD, PAD);
+    setLS(ctx, '0px');
+
+    const lbl = getConcertLabel(concert);
+    if (lbl) {
+      ctx.font      = '500 10px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle = '#444';
+      ctx.textAlign = 'right';
+      ctx.fillText(lbl, W - PAD, PAD + 3);
+    }
+
+    // ── Footer ──────────────────────────────────────────────────────────────
     const uname = user && user.username ? '@' + user.username : '';
-    const ctx   = getConcertContext(concert);
+    ctx.textBaseline = 'bottom';
+    if (uname) {
+      ctx.font      = '600 11px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.textAlign = 'left';
+      ctx.fillText(uname, PAD, H - PAD);
+    }
+    ctx.font      = '400 10px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle = '#2A2A2A';
+    ctx.textAlign = 'right';
+    ctx.fillText('reprise.app', W - PAD, H - PAD);
+
+    // ── Stub (story only) ────────────────────────────────────────────────────
+    // Footer occupies bottom ~37px. Stub occupies the 30px above it.
+    const FOOTER_H = 37;
+    const STUB_H   = 30;
+
+    if (!S) {
+      const sy = H - FOOTER_H - STUB_H / 2;  // vertical center of stub line
+
+      // Dashed tear line
+      ctx.strokeStyle = '#1E1E1E';
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(PAD, sy);
+      ctx.lineTo(W - PAD, sy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Punch holes (background fill + dashed border)
+      [23, W - 23].forEach(cx => {
+        ctx.fillStyle = BG;
+        ctx.beginPath();
+        ctx.arc(cx, sy, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1E1E1E';
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([2, 2]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    // ── Body content (drawn bottom-up, mirrors flex-end) ────────────────────
+    const BODY_BTM = S
+      ? H - FOOTER_H - PAD
+      : H - FOOTER_H - STUB_H - 18;  // 18 = body padding-bottom
+
+    let y = BODY_BTM;
+
+    // Comment
+    if (concert.notes) {
+      const txt   = '“' + concert.notes + '”';
+      ctx.font    = 'italic 13px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      const lines = wrapText(ctx, txt, W - PAD * 2 - 14);
+      const LH    = Math.round(13 * 1.6);  // 21px
+      const blkH  = lines.length * LH;
+      const top   = y - blkH;
+
+      ctx.fillStyle    = '#6A6760';
+      ctx.textBaseline = 'top';
+      ctx.textAlign    = 'left';
+      lines.forEach((l, i) => ctx.fillText(l, PAD + 14, top + i * LH));
+
+      // Accent bar
+      ctx.fillStyle = '#C8FF00';
+      ctx.fillRect(PAD, top - 2, 2, blkH + 4);
+
+      y = top - 18;
+    }
+
+    // Score
+    if (concert.rating) {
+      const s   = String(concert.rating);
+      const FS  = S ? 52 : 76;
+      const FSD = S ? 18 : 22;
+
+      setLS(ctx, '-3px');
+      ctx.font         = '900 ' + FS + 'px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#C8FF00';
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign    = 'left';
+      const sw = ctx.measureText(s).width;
+      ctx.fillText(s, PAD, y);
+      setLS(ctx, '0px');
+
+      ctx.font        = '600 ' + FSD + 'px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.globalAlpha = 0.5;
+      ctx.fillText('/10', PAD + sw + 4, y - 6);
+      ctx.globalAlpha = 1;
+
+      y -= FS + 26;
+    }
+
+    // Date
+    if (concert.date) {
+      ctx.font         = '400 11px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#333';
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign    = 'left';
+      ctx.fillText(fmtDate(concert.date), PAD, y);
+      y -= 14;
+    }
+
+    // Venue
     const venue = [concert.venue, concert.city].filter(Boolean).join(' · ');
+    if (venue) {
+      ctx.font         = '400 13px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#8A8780';
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign    = 'left';
+      ctx.fillText(venue, PAD, y);
+      y -= 21;
+    }
 
-    const scoreHtml = concert.rating
-      ? '<div class="rp-sc-score-row">' +
-          '<span class="rp-sc-score">' + esc(String(concert.rating)) + '</span>' +
-          '<span class="rp-sc-score-den">/10</span>' +
-        '</div>'
-      : '';
+    // Artist name
+    const artist = (concert.artist || '').toLowerCase();
+    if (artist) {
+      const FS = S ? 28 : 40;
+      setLS(ctx, S ? '-1px' : '-1.5px');
+      ctx.font = '900 ' + FS + 'px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      const lines = wrapText(ctx, artist, W - PAD * 2);
 
-    const commentHtml = concert.notes
-      ? '<p class="rp-sc-comment">&ldquo;' + esc(concert.notes) + '&rdquo;</p>'
-      : '';
-
-    const stubHtml = (ratio === 'story')
-      ? '<div class="rp-sc-stub">' +
-          '<div class="rp-sc-hole l"></div>' +
-          '<div class="rp-sc-stub-line"></div>' +
-          '<div class="rp-sc-hole r"></div>' +
-        '</div>'
-      : '';
-
-    el.innerHTML =
-      '<div class="rp-sc-hdr">' +
-        '<span class="rp-sc-logo">reprise</span>' +
-        '<span class="rp-sc-ctx">' + esc(ctx) + '</span>' +
-      '</div>' +
-      '<div class="rp-sc-body">' +
-        '<div class="rp-sc-artist">' + esc(concert.artist || '') + '</div>' +
-        '<div class="rp-sc-venue">' + esc(venue) + '</div>' +
-        '<div class="rp-sc-date">'  + fmtDate(concert.date) + '</div>' +
-        scoreHtml +
-        commentHtml +
-      '</div>' +
-      stubHtml +
-      '<div class="rp-sc-ftr">' +
-        '<div class="rp-sc-sig">' +
-          '<span class="rp-sc-uname">' + esc(uname) + '</span>' +
-          '<span class="rp-sc-brand">reprise.app</span>' +
-        '</div>' +
-      '</div>';
-
-    return el;
+      ctx.fillStyle    = '#F5F3EF';
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign    = 'left';
+      for (let i = lines.length - 1; i >= 0; i--) {
+        ctx.fillText(lines[i], PAD, y);
+        y -= FS;
+      }
+      setLS(ctx, '0px');
+    }
   }
 
   // ── WRAPPED CARD ──────────────────────────────────────────────────────────
-  function buildWrappedCard(stats, user, ratio) {
-    injectCSS();
-    const el = document.createElement('div');
-    el.className = 'rp-sc ' + ratio;
+  function drawWrapped(ctx, W, H, stats, user) {
+    const PAD     = 26;
+    const ROW_GAP = 22;
+    const BG      = '#0A0A0A';
 
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+
+    // Header
+    setLS(ctx, '-0.5px');
+    ctx.font         = '800 16px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle    = '#C8FF00';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('reprise', PAD, PAD);
+    setLS(ctx, '0px');
+
+    ctx.font      = '500 10px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'right';
+    ctx.fillText(stats.year + ' wrapped', W - PAD, PAD + 3);
+
+    // Footer
     const uname = user && user.username ? '@' + user.username : '';
-    const rows  = [];
+    ctx.textBaseline = 'bottom';
+    if (uname) {
+      ctx.font      = '600 11px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.textAlign = 'left';
+      ctx.fillText(uname, PAD, H - PAD);
+    }
+    ctx.font      = '400 10px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle = '#2A2A2A';
+    ctx.textAlign = 'right';
+    ctx.fillText('reprise.app', W - PAD, H - PAD);
 
-    rows.push(
-      '<div class="rp-sc-wr-row">' +
-        '<div class="rp-sc-wr-label">' + stats.year + ' · konser sayın</div>' +
-        '<div class="rp-sc-wr-big">'   + stats.total + '</div>' +
-        '<div class="rp-sc-wr-unit">konser</div>' +
-      '</div>'
-    );
+    let y = PAD + 16 + 24;
 
-    if (stats.avgRating) rows.push(
-      '<div class="rp-sc-wr-row">' +
-        '<div class="rp-sc-wr-label">ortalama puan</div>' +
-        '<div class="rp-sc-wr-mid">' + stats.avgRating + ' <span class="rp-sc-wr-unit">/ 10</span></div>' +
-      '</div>'
-    );
+    const lbl = text => {
+      ctx.font         = '600 10px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#444';
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(text, PAD, y);
+      y += 16;
+    };
 
-    if (stats.best) rows.push(
-      '<div class="rp-sc-wr-row">' +
-        '<div class="rp-sc-wr-label">en iyi konser</div>' +
-        '<div class="rp-sc-wr-sub" style="font-size:18px;font-weight:800;color:#F5F3EF;text-transform:lowercase">' + esc(stats.best.artist) + '</div>' +
-        (stats.best.venue ? '<div class="rp-sc-wr-unit">' + esc([stats.best.venue, stats.best.city].filter(Boolean).join(' · ')) + '</div>' : '') +
-      '</div>'
-    );
+    // Total concerts
+    lbl(stats.year + ' · konser sayın');
+    setLS(ctx, '-2px');
+    ctx.font         = '900 60px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle    = '#C8FF00';
+    ctx.textBaseline = 'top';
+    ctx.textAlign    = 'left';
+    ctx.fillText(String(stats.total), PAD, y);
+    setLS(ctx, '0px');
+    y += 64;
+    ctx.font      = '500 13px -apple-system,"Helvetica Neue",Arial,sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.fillText('konser', PAD, y);
+    y += 17 + ROW_GAP;
 
-    if (stats.uniqueArtists > 1) rows.push(
-      '<div class="rp-sc-wr-row">' +
-        '<div class="rp-sc-wr-label">farklı sanatçı</div>' +
-        '<div class="rp-sc-wr-mid">' + stats.uniqueArtists + '</div>' +
-      '</div>'
-    );
+    if (stats.avgRating && y < H - 90) {
+      lbl('ortalama puan');
+      ctx.font         = '800 28px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#F5F3EF';
+      ctx.textBaseline = 'top';
+      const aw = ctx.measureText(stats.avgRating).width;
+      ctx.fillText(stats.avgRating, PAD, y);
+      ctx.font      = '500 13px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.fillText('/ 10', PAD + aw + 6, y + 10);
+      y += 32 + ROW_GAP;
+    }
 
-    if (stats.topCity) rows.push(
-      '<div class="rp-sc-wr-row">' +
-        '<div class="rp-sc-wr-label">en çok gittiğin şehir</div>' +
-        '<div class="rp-sc-wr-sub" style="font-size:16px;font-weight:700;color:#F5F3EF;text-transform:lowercase">' +
-          esc(stats.topCity.name) + ' <span class="rp-sc-wr-unit">' + stats.topCity.count + ' konser</span>' +
-        '</div>' +
-      '</div>'
-    );
+    if (stats.best && y < H - 90) {
+      lbl('en iyi konser');
+      ctx.font         = '800 18px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#F5F3EF';
+      ctx.textBaseline = 'top';
+      ctx.fillText((stats.best.artist || '').toLowerCase(), PAD, y);
+      y += 22;
+      const bv = [stats.best.venue, stats.best.city].filter(Boolean).join(' · ');
+      if (bv) {
+        ctx.font      = '500 13px -apple-system,"Helvetica Neue",Arial,sans-serif';
+        ctx.fillStyle = '#555';
+        ctx.fillText(bv, PAD, y);
+        y += 17;
+      }
+      y += ROW_GAP;
+    }
 
-    el.innerHTML =
-      '<div class="rp-sc-hdr">' +
-        '<span class="rp-sc-logo">reprise</span>' +
-        '<span class="rp-sc-ctx">' + stats.year + ' wrapped</span>' +
-      '</div>' +
-      '<div class="rp-sc-body" style="justify-content:flex-start;padding-top:24px">' +
-        rows.join('') +
-      '</div>' +
-      '<div class="rp-sc-ftr">' +
-        '<div class="rp-sc-sig">' +
-          '<span class="rp-sc-uname">' + esc(uname) + '</span>' +
-          '<span class="rp-sc-brand">reprise.app</span>' +
-        '</div>' +
-      '</div>';
+    if (stats.uniqueArtists > 1 && y < H - 90) {
+      lbl('farklı sanatçı');
+      ctx.font         = '800 28px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#F5F3EF';
+      ctx.textBaseline = 'top';
+      ctx.fillText(String(stats.uniqueArtists), PAD, y);
+      y += 32 + ROW_GAP;
+    }
 
-    return el;
+    if (stats.topCity && y < H - 60) {
+      lbl('en çok gittiğin şehir');
+      ctx.font         = '700 16px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle    = '#F5F3EF';
+      ctx.textBaseline = 'top';
+      const cn = (stats.topCity.name || '').toLowerCase();
+      const cw = ctx.measureText(cn).width;
+      ctx.fillText(cn, PAD, y);
+      ctx.font      = '500 13px -apple-system,"Helvetica Neue",Arial,sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.fillText(stats.topCity.count + ' konser', PAD + cw + 8, y + 2);
+    }
   }
 
-  // ── RENDER TO PNG ──────────────────────────────────────────────────────────
-  async function renderToPng(el, ratio) {
-    const DIMS = { story: { w: 360, h: 640 }, square: { w: 360, h: 360 } };
-    const { w, h } = DIMS[ratio] || DIMS.story;
-
-    // Position off-screen: absolute below viewport (NOT fixed, which confuses html-to-image)
-    el.style.cssText = [
-      'position:absolute',
-      'top:200vh',
-      'left:0',
-      'width:' + w + 'px',
-      'height:' + h + 'px',
-      'z-index:-1',
-    ].join(';');
-    document.body.appendChild(el);
-
-    try {
-      await document.fonts.ready;
-      // Wait a frame so flex layout settles
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-      const lib = global.htmlToImage;
-      if (!lib) throw new Error('html-to-image not loaded');
-
-      return await lib.toPng(el, {
-        width:       w,
-        height:      h,
-        pixelRatio:  2,
-        cacheBust:   true,
-        style: { 'border-radius': '0' },
-      });
-    } finally {
-      el.remove();
-    }
+  // ── PNG RENDER ────────────────────────────────────────────────────────────
+  function renderToPng(drawFn, ratio) {
+    const SCALE = 3;
+    const DIMS  = { story: { w: 360, h: 640 }, square: { w: 360, h: 360 } };
+    const dim   = DIMS[ratio] || DIMS.story;
+    const cv    = document.createElement('canvas');
+    cv.width    = dim.w * SCALE;
+    cv.height   = dim.h * SCALE;
+    const ctx   = cv.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+    ctx.scale(SCALE, SCALE);
+    drawFn(ctx, dim.w, dim.h);
+    return cv.toDataURL('image/png');
   }
 
   // ── PUBLIC API ────────────────────────────────────────────────────────────
@@ -284,20 +353,24 @@
 
     async concertCard(concert, user, ratio) {
       ratio = ratio || 'story';
-      const el = buildConcertCard(concert, user, ratio);
-      return renderToPng(el, ratio);
+      return renderToPng(
+        (ctx, w, h) => drawConcert(ctx, w, h, concert, user, ratio),
+        ratio
+      );
     },
 
     async wrappedCard(stats, user, ratio) {
       ratio = ratio || 'story';
-      const el = buildWrappedCard(stats, user, ratio);
-      return renderToPng(el, ratio);
+      return renderToPng(
+        (ctx, w, h) => drawWrapped(ctx, w, h, stats, user),
+        ratio
+      );
     },
 
     async shareOrDownload(dataUrl, filename) {
       if (navigator.share) {
         try {
-          const blob = await fetch(dataUrl).then(function(r) { return r.blob(); });
+          const blob = await fetch(dataUrl).then(r => r.blob());
           const file = new File([blob], filename, { type: 'image/png' });
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file] });
@@ -308,11 +381,8 @@
         }
       }
       const a = document.createElement('a');
-      a.href     = dataUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      a.href = dataUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
       return 'downloaded';
     },
   };
