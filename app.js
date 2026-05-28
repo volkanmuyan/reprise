@@ -1485,10 +1485,11 @@ function _setShareLoading(loading, dataUrl) {
   const dlBtn  = document.getElementById('share-dl-btn');
   const shBtn  = document.getElementById('share-share-btn');
   loadEl.style.display = loading ? 'flex' : 'none';
-  imgEl.style.display  = loading ? 'none' : 'block';
-  if (!loading && dataUrl) imgEl.src = dataUrl;
-  dlBtn.disabled = loading;
-  shBtn.disabled = loading;
+  if (!loading && dataUrl) { imgEl.src = dataUrl; imgEl.style.display = 'block'; }
+  else if (!loading)       { imgEl.style.display = 'none'; }
+  else                     { imgEl.style.display = 'none'; }
+  dlBtn.disabled = loading || !dataUrl;
+  shBtn.disabled = loading || !dataUrl;
 }
 
 async function downloadShareCard() {

@@ -20,6 +20,7 @@
 
   function getConcertLabel(c) {
     try {
+      if (!global.DataService || typeof global.DataService.getHistory !== 'function') return '';
       const all  = global.DataService.getHistory();
       const year = c.date ? new Date(c.date + 'T12:00:00').getFullYear() : null;
       if (!year) return '';
